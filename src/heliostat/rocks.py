@@ -17,10 +17,11 @@ class PackageRepository(msgspec.Struct, omit_defaults=True):
 
 
 class RockcraftBuilder:
-    def __init__(self, base: "RockcraftFile"):
-        self.base = base
+    def __init__(self, base_file: "RockcraftFile"):
+        self.base = base_file
         self._ppa = None
         self._cloud = None
+        self._base = None
 
     def with_ppa(self, ppa: str) -> "RockcraftBuilder":
         self._ppa = ppa

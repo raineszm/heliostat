@@ -13,7 +13,9 @@ from heliostat.rocks import RockcraftFile, SunbeamRockRepo
 rock_app = typer.Typer()
 
 
-def _get_rock(repo: SunbeamRockRepo, rock_name: str):
+def _get_rock(rock_name: str, repo: SunbeamRockRepo | None = None):
+    if repo is None:
+        repo = SunbeamRockRepo.ensure()
     try:
         rock = repo.rock(rock_name)
     except ValueError as e:
@@ -32,9 +34,7 @@ def list():
 
 @rock_app.command()
 def show(rock_name: str):
-    repo = SunbeamRockRepo.ensure()
-
-    rock = _get_rock(repo, rock_name)
+    rock = _get_rock(rock_name)
     typer.echo(f"Rock: {rock.name}")
     for pkg_repo in rock.rockcraft_yaml().repositories():
         typer.echo(f"Cloud: {pkg_repo.cloud}")
@@ -53,8 +53,10 @@ def patch(
     ] = None,
     ppa: Annotated[str | None, typer.Option()] = None,
     cloud: Annotated[str | None, typer.Option()] = None,
+    base: Annotated[str | None, typer.Option()] = None,
 ):
-    rockcraft = _get_patched(rock_name, ppa=ppa, cloud=cloud)
+    rock = _get_rock(rock_name)
+    rockcraft = _get_patched(rock.rockcraft_yaml(), ppa=ppa, cloud=cloud, base=base)
 
     yaml = YAML()
     if output is None:
@@ -81,7 +83,8 @@ def build(
     cloud: Annotated[str | None, typer.Option()] = None,
     base: Annotated[str | None, typer.Option()] = None,
 ):
-    rockcraft = _get_patched(rock_name, ppa=ppa, cloud=cloud, base=base)
+    rock = _get_rock(rock_name)
+    rockcraft = _get_patched(rock.rockcraft_yaml(), ppa=ppa, cloud=cloud, base=base)
 
     output_dir = output_dir or Path.cwd()
 
@@ -99,13 +102,9 @@ def build(
 
 
 def _get_patched(
-    rock_name: str, ppa: str | None, cloud: str | None, base: str | None
+    rock: RockcraftFile, ppa: str | None, cloud: str | None, base: str | None
 ) -> RockcraftFile:
-    repo = SunbeamRockRepo.ensure()
-
-    rock = _get_rock(repo, rock_name)
-
-    builder = rock.rockcraft_yaml().patched()
+    builder = rock.patched()
 
     if ppa:
         builder.with_ppa(ppa)

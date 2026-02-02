@@ -1,11 +1,11 @@
-import subprocess
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
 import msgspec
-import xdg_base_dirs as xdg
 import yaml
+
+from heliostat.git import ensure_repo
 
 
 class PackageRepository(msgspec.Struct):
@@ -27,48 +27,36 @@ class RockcraftFile:
             yield msgspec.convert(repo, PackageRepository)
 
 
-class RockFolder:
-    def __init__(self, name: str, path: Path):
-        self.name = name
+class SunbeamRock:
+    def __init__(self, path: Path):
         self.path = path
 
-    def yaml(self) -> str:
-        return (self.path / "rockcraft.yaml").read_text()
+    @property
+    def name(self) -> str:
+        return self.path.name
 
-    def load(self) -> RockcraftFile:
-        return RockcraftFile(yaml.safe_load(self.yaml()))
+    def rockcraft_yaml(self) -> RockcraftFile:
+        obj = yaml.safe_load((self.path / "rockcraft.yaml").read_text())
+        return RockcraftFile(obj)
 
 
-class SunbeamRocks:
+class SunbeamRockRepo:
     """An interface to the canonical/ubuntu-sunbeam-rocks repo.
 
     heliostat uses the definitions in this repo as a starting point and then
     applies patch on top.
     """
 
-    def ensure_repo(self):
-        if not self.repo_cache.exists():
-            # Set up parent cache dir
-            self.repo_cache.parent.mkdir(parents=True, exist_ok=True)
-            # shell out to git clone
-            try:
-                subprocess.check_call(
-                    [
-                        "git",
-                        "clone",
-                        "--depth=1",
-                        "--",
-                        "https://github.com/canonical/ubuntu-openstack-rocks.git",
-                        self.repo_cache,
-                    ]
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Failed to clone repo: {e}")
+    REPO_URI = "https://github.com/canonical/ubuntu-openstack-rocks.git"
 
-    @property
-    def repo_cache(self) -> Path:
-        return xdg.xdg_cache_home() / "heliostat" / "ubuntu-sunbeam-rocks"
+    @classmethod
+    def ensure(cls) -> "SunbeamRockRepo":
+        local_path = ensure_repo(cls.REPO_URI)
+        return cls(local_path)
 
-    def rocks(self) -> Iterable[RockFolder]:
-        for rock_dir in (self.repo_cache / "rocks").iterdir():
-            yield RockFolder(rock_dir.name, rock_dir)
+    def __init__(self, path: Path):
+        self.path = path
+
+    def rocks(self) -> Iterable[SunbeamRock]:
+        for rock_dir in (self.path / "rocks").iterdir():
+            yield SunbeamRock(rock_dir)

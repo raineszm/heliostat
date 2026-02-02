@@ -20,23 +20,36 @@ class RockcraftBuilder:
     def __init__(self, base: "RockcraftFile"):
         self.base = base
         self._ppa = None
+        self._cloud = None
 
     def with_ppa(self, ppa: str) -> "RockcraftBuilder":
         self._ppa = ppa
         return self
 
+    def with_base(self, base: str) -> "RockcraftBuilder":
+        self._base = base
+        return self
+
+    def with_cloud(self, cloud: str) -> "RockcraftBuilder":
+        self._cloud = cloud
+        return self
+
     def build(self) -> "RockcraftFile":
         yaml_data = deepcopy(self.base.yaml)
-        if self._ppa:
-            yaml_data[self.base.REPO_KEY] = [
-                msgspec.to_builtins(PackageRepository(type="apt", ppa=self._ppa))
-            ]
+        yaml_data[self.base.REPO_KEY] = [
+            msgspec.to_builtins(
+                PackageRepository(type="apt", ppa=self._ppa, cloud=self._cloud)
+            )
+        ]
+        if self._base:
+            yaml_data[self.base.BASE_KEY] = self._base
         return RockcraftFile(yaml_data)
 
 
 class RockcraftFile:
     """A rockcraft file for a sunbeam rock."""
 
+    BASE_KEY = "base"
     REPO_KEY = "package-repositories"
 
     def __init__(self, yaml: dict[str, Any]):

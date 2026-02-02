@@ -3,12 +3,12 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
+import msgspec
 import xdg_base_dirs as xdg
 import yaml
-from pydantic import BaseModel
 
 
-class PackageRepository(BaseModel):
+class PackageRepository(msgspec.Struct):
     type: str
     cloud: str | None = None
     priority: str | None = None
@@ -24,7 +24,7 @@ class RockcraftFile:
 
     def repositories(self) -> Iterable[PackageRepository]:
         for repo in self._yaml.get(self.REPO_KEY, []):
-            yield PackageRepository.model_validate(repo)
+            yield msgspec.convert(repo, PackageRepository)
 
 
 class RockFolder:

@@ -1,17 +1,37 @@
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 import msgspec
-import yaml
+from ruamel.yaml import YAML
 
 from heliostat.git import ensure_repo
 
 
-class PackageRepository(msgspec.Struct):
+class PackageRepository(msgspec.Struct, omit_defaults=True):
     type: str
     cloud: str | None = None
+    ppa: str | None = None
     priority: str | None = None
+
+
+class RockcraftBuilder:
+    def __init__(self, base: "RockcraftFile"):
+        self.base = base
+        self._ppa = None
+
+    def with_ppa(self, ppa: str) -> "RockcraftBuilder":
+        self._ppa = ppa
+        return self
+
+    def build(self) -> "RockcraftFile":
+        yaml_data = deepcopy(self.base.yaml)
+        if self._ppa:
+            yaml_data[self.base.REPO_KEY] = [
+                msgspec.to_builtins(PackageRepository(type="apt", ppa=self._ppa))
+            ]
+        return RockcraftFile(yaml_data)
 
 
 class RockcraftFile:
@@ -19,12 +39,15 @@ class RockcraftFile:
 
     REPO_KEY = "package-repositories"
 
-    def __init__(self, yaml: Mapping[str, Any]):
-        self._yaml = yaml
+    def __init__(self, yaml: dict[str, Any]):
+        self.yaml = yaml
 
     def repositories(self) -> Iterable[PackageRepository]:
-        for repo in self._yaml.get(self.REPO_KEY, []):
+        for repo in self.yaml.get(self.REPO_KEY, []):
             yield msgspec.convert(repo, PackageRepository)
+
+    def patched(self) -> RockcraftBuilder:
+        return RockcraftBuilder(self)
 
 
 class SunbeamRock:
@@ -36,7 +59,8 @@ class SunbeamRock:
         return self.path.name
 
     def rockcraft_yaml(self) -> RockcraftFile:
-        obj = yaml.safe_load((self.path / "rockcraft.yaml").read_text())
+        yaml = YAML()
+        obj = yaml.load((self.path / "rockcraft.yaml").read_text())
         return RockcraftFile(obj)
 
 
@@ -60,3 +84,10 @@ class SunbeamRockRepo:
     def rocks(self) -> Iterable[SunbeamRock]:
         for rock_dir in (self.path / "rocks").iterdir():
             yield SunbeamRock(rock_dir)
+
+    def rock(self, name: str) -> SunbeamRock:
+        for rock in self.rocks():
+            if rock.name == name:
+                return rock
+
+        raise ValueError(f"No rock found with name '{name}'")

@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,16 @@ import msgspec
 from ruamel.yaml import YAML
 
 from heliostat.git import ensure_repo
+
+
+@dataclass
+class AddPpa:
+    ppa: str
+
+    def apply(self, rockcraft: dict[str, Any]):
+        rockcraft[RockcraftFile.REPO_KEY].append(
+            msgspec.to_builtins(PackageRepository(type="apt", ppa=self.ppa))
+        )
 
 
 class PackageRepository(msgspec.Struct, omit_defaults=True):

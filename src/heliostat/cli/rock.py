@@ -8,7 +8,15 @@ from typing import Annotated
 import typer
 from ruamel.yaml import YAML
 
-from heliostat.rocks import RockcraftFile, SunbeamRockRepo
+from heliostat.rocks import (
+    AddPpa,
+    Release,
+    RockcraftFile,
+    Series,
+    SetBase,
+    SetUcaRelease,
+    SunbeamRockRepo,
+)
 
 rock_app = typer.Typer()
 
@@ -37,7 +45,7 @@ def show(rock_name: str):
     rock = _get_rock(rock_name)
     typer.echo(f"Rock: {rock.name}")
     for pkg_repo in rock.rockcraft_yaml().repositories():
-        typer.echo(f"Cloud: {pkg_repo.cloud}")
+        typer.echo(pkg_repo)
 
 
 @rock_app.command()
@@ -52,11 +60,13 @@ def patch(
         ),
     ] = None,
     ppa: Annotated[str | None, typer.Option()] = None,
-    cloud: Annotated[str | None, typer.Option()] = None,
-    base: Annotated[str | None, typer.Option()] = None,
+    release: Annotated[Release | None, typer.Option()] = None,
+    series: Annotated[Series | None, typer.Option()] = None,
 ):
     rock = _get_rock(rock_name)
-    rockcraft = _get_patched(rock.rockcraft_yaml(), ppa=ppa, cloud=cloud, base=base)
+    rockcraft = _get_patched(
+        rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
+    )
 
     yaml = YAML()
     if output is None:
@@ -80,11 +90,13 @@ def build(
         ),
     ] = None,
     ppa: Annotated[str | None, typer.Option()] = None,
-    cloud: Annotated[str | None, typer.Option()] = None,
-    base: Annotated[str | None, typer.Option()] = None,
+    release: Annotated[Release | None, typer.Option()] = None,
+    series: Annotated[Series | None, typer.Option()] = None,
 ):
     rock = _get_rock(rock_name)
-    rockcraft = _get_patched(rock.rockcraft_yaml(), ppa=ppa, cloud=cloud, base=base)
+    rockcraft = _get_patched(
+        rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
+    )
 
     output_dir = output_dir or Path.cwd()
 
@@ -102,20 +114,22 @@ def build(
 
 
 def _get_patched(
-    rock: RockcraftFile, ppa: str | None, cloud: str | None, base: str | None
+    rock: RockcraftFile,
+    ppa: str | None,
+    release: Release | None,
+    series: Series | None,
 ) -> RockcraftFile:
-    builder = rock.patched()
-
+    patches = []
     if ppa:
-        builder.with_ppa(ppa)
+        patches.append(AddPpa(ppa=ppa))
 
-    if cloud:
-        builder.with_cloud(cloud)
+    if release:
+        patches.append(SetUcaRelease(release=release, series=series))
 
-    if base:
-        builder.with_base(base)
+    if series:
+        patches.append(SetBase(series_or_base=series))
 
-    return builder.build()
+    return rock.patch(patches)
 
 
 @rock_app.callback(no_args_is_help=True)

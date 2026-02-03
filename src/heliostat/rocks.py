@@ -1,8 +1,8 @@
+import copy
 from collections.abc import Iterable
-from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, Protocol
 
 import msgspec
 from ruamel.yaml import YAML
@@ -10,52 +10,98 @@ from ruamel.yaml import YAML
 from heliostat.git import ensure_repo
 
 
+class Patch(Protocol):
+    def apply(self, rockcraft: dict[str, Any]): ...
+
+
 @dataclass
-class AddPpa:
+class AddPpa(Patch):
     ppa: str
 
     def apply(self, rockcraft: dict[str, Any]):
         rockcraft[RockcraftFile.REPO_KEY].append(
-            msgspec.to_builtins(PackageRepository(type="apt", ppa=self.ppa))
+            msgspec.to_builtins(PpaPackageRepository(type="apt", ppa=self.ppa))
         )
 
 
-class PackageRepository(msgspec.Struct, omit_defaults=True):
-    type: str
-    cloud: str | None = None
-    ppa: str | None = None
-    priority: str | None = None
+Release = Literal["yoga", "antelope", "caracal", "epoxy"]
+Series = Literal["jammy", "noble"]
+Base = Literal["ubuntu@22.04", "ubuntu@24.04"]
 
 
-class RockcraftBuilder:
-    def __init__(self, base_file: "RockcraftFile"):
-        self.base = base_file
-        self._ppa = None
-        self._cloud = None
-        self._base = None
+@dataclass
+class SetUcaRelease(Patch):
+    DEFAULT_RELEASE = {
+        "jammy": "yoga",
+        "noble": "caracal",
+    }
 
-    def with_ppa(self, ppa: str) -> "RockcraftBuilder":
-        self._ppa = ppa
-        return self
+    release: Release
+    series: Series | None
 
-    def with_base(self, base: str) -> "RockcraftBuilder":
-        self._base = base
-        return self
+    def apply(self, rockcraft: dict[str, Any]):
+        # if we're using the default pairing, we can just fall back to
+        # the ubuntu archives
+        series = self.series or "noble"
+        if self.DEFAULT_RELEASE.get(series) == self.release:
+            del rockcraft[RockcraftFile.REPO_KEY][0]
+            return
 
-    def with_cloud(self, cloud: str) -> "RockcraftBuilder":
-        self._cloud = cloud
-        return self
+        cloud_repo = msgspec.convert(
+            rockcraft[RockcraftFile.REPO_KEY][0], CloudPackageRepository
+        )
 
-    def build(self) -> "RockcraftFile":
-        yaml_data = deepcopy(self.base.yaml)
-        yaml_data[self.base.REPO_KEY] = [
-            msgspec.to_builtins(
-                PackageRepository(type="apt", ppa=self._ppa, cloud=self._cloud)
-            )
-        ]
-        if self._base:
-            yaml_data[self.base.BASE_KEY] = self._base
-        return RockcraftFile(yaml_data)
+        cloud_repo.cloud = self.release
+
+        rockcraft[RockcraftFile.REPO_KEY][0] = msgspec.to_builtins(cloud_repo)
+
+
+@dataclass
+class SetBase(Patch):
+    SERIES_TO_BASE = {
+        "jammy": "ubuntu@22.04",
+        "noble": "ubuntu@24.04",
+    }
+
+    series_or_base: Series | Base
+
+    def apply(self, rockcraft: dict[str, Any]):
+        rockcraft[RockcraftFile.BASE_KEY] = self.SERIES_TO_BASE.get(
+            self.series_or_base, self.series_or_base
+        )
+
+
+Priority = Literal["always", "prefer", "defer"] | int
+
+
+class PpaPackageRepository(msgspec.Struct, omit_defaults=True):
+    type: Literal["apt"]
+    ppa: str
+    priority: Priority | None = None
+    key_id: str | None = None
+
+
+class CloudPackageRepository(msgspec.Struct, omit_defaults=True):
+    type: Literal["apt"]
+    cloud: str
+    pocket: Literal["updates", "proposed"] | None = None
+    priority: Priority | None = None
+    key_id: str | None = None
+
+
+class DebPackageRepository(msgspec.Struct, omit_defaults=True):
+    type: Literal["apt"]
+    architectures: list[str] = []
+    formats: list[str] = msgspec.field(default_factory=lambda: ["deb"])
+    priority: Priority | None = None
+    path: str | None = None
+    key_id: str | None = None
+    pocket: Literal["updates", "proposed"] | None = None
+    series: str | None = None
+    url: str | None = None
+
+
+PackageRepository = PpaPackageRepository | CloudPackageRepository | DebPackageRepository
 
 
 class RockcraftFile:
@@ -69,10 +115,18 @@ class RockcraftFile:
 
     def repositories(self) -> Iterable[PackageRepository]:
         for repo in self.yaml.get(self.REPO_KEY, []):
-            yield msgspec.convert(repo, PackageRepository)
+            if "ppa" in repo:
+                yield msgspec.convert(repo, PpaPackageRepository)
+            elif "cloud" in repo:
+                yield msgspec.convert(repo, CloudPackageRepository)
+            else:
+                yield msgspec.convert(repo, DebPackageRepository)
 
-    def patched(self) -> RockcraftBuilder:
-        return RockcraftBuilder(self)
+    def patch(self, patches: Iterable[Patch]) -> "RockcraftFile":
+        yaml = copy.deepcopy(self.yaml)
+        for patch in patches:
+            patch.apply(yaml)
+        return RockcraftFile(yaml)
 
 
 class SunbeamRock:

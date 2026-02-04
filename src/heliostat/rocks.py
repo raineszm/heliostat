@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import copy
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, Self
 
 import msgspec
 from ruamel.yaml import YAML
@@ -124,7 +126,7 @@ class RockcraftFile:
             else:
                 yield msgspec.convert(repo, DebPackageRepository)
 
-    def patch(self, patches: Iterable[Patch]) -> "RockcraftFile":
+    def patch(self, patches: Iterable[Patch]) -> RockcraftFile:
         yaml = copy.deepcopy(self.yaml)
         for patch in patches:
             patch.apply(yaml)
@@ -163,7 +165,7 @@ class SunbeamRockRepo:
     REPO_URI = "https://github.com/canonical/ubuntu-openstack-rocks.git"
 
     @classmethod
-    def ensure(cls) -> "SunbeamRockRepo":
+    def ensure(cls) -> Self:
         local_path = ensure_repo(cls.REPO_URI)
         return cls(local_path)
 

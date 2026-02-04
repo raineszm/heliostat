@@ -48,7 +48,7 @@ def show(rock_name: str):
     for pkg_repo in rock.rockcraft_yaml().repositories():
         typer.echo(pkg_repo)
     typer.echo("Dependencies:")
-    for dep in rock.rockcraft_yaml().deps:
+    for dep in rock.rockcraft_yaml().deps():
         typer.echo(dep)
 
 

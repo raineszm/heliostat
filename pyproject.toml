@@ -20,6 +20,6 @@ package = true
 
 [dependency-groups]
 dev = [
-    "pre-commit>=4.5.1",
+    "prek>=0.3.1",
     "ruff>=0.14.14",
 ]

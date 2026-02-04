@@ -1,3 +1,4 @@
+import itertools
 import shutil
 import subprocess
 from io import StringIO
@@ -32,8 +33,8 @@ def _get_rock(rock_name: str, repo: SunbeamRockRepo | None = None):
     return rock
 
 
-@rock_app.command()
-def list():
+@rock_app.command(name="list")
+def list_cmd():
     repo = SunbeamRockRepo.ensure()
 
     for folder in repo.rocks():
@@ -84,7 +85,20 @@ def patch(
 
 @rock_app.command()
 def build(
-    rock_name: str,
+    rocks: Annotated[
+        list[str],
+        typer.Option(
+            "--rock",
+            help="Name of the rock to build",
+        ),
+    ] = [],
+    sources: Annotated[
+        list[str],
+        typer.Option(
+            "--source",
+            help="Source URL for the rock",
+        ),
+    ] = [],
     output_dir: Annotated[
         Path | None,
         typer.Option(
@@ -97,13 +111,21 @@ def build(
     release: Annotated[Release | None, typer.Option()] = None,
     series: Annotated[Series | None, typer.Option()] = None,
 ):
-    rock = _get_rock(rock_name)
-    rockcraft = _get_patched(
-        rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
-    )
-
     output_dir = output_dir or Path.cwd()
 
+    repo = SunbeamRockRepo.ensure()
+
+    for rock in itertools.chain(
+        repo.rocks(set(rocks)), repo.rocks_for_packages(*sources)
+    ):
+        rockcraft = _get_patched(
+            rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
+        )
+
+        do_build(rock.name, rockcraft, output_dir)
+
+
+def do_build(rock_name: str, rockcraft: RockcraftFile, output_dir: Path):
     with TemporaryDirectory(suffix=rock_name, prefix="heliostat") as build_dir:
         build_dir = Path(build_dir)
         yaml = YAML()

@@ -172,16 +172,16 @@ class SunbeamRockRepo:
     def __init__(self, path: Path):
         self.path = path
 
-    def rocks(self) -> Iterable[SunbeamRock]:
+    def rocks(self, names: set[str] | None = None) -> Iterable[SunbeamRock]:
         for rock_dir in (self.path / "rocks").iterdir():
-            yield SunbeamRock(rock_dir)
+            if names is None or rock_dir.name in names:
+                yield SunbeamRock(rock_dir)
 
     def rock(self, name: str) -> SunbeamRock:
-        for rock in self.rocks():
-            if rock.name == name:
-                return rock
-
-        raise ValueError(f"No rock found with name '{name}'")
+        result = list(self.rocks({name}))
+        if not result:
+            raise ValueError(f"No rock found with name '{name}'")
+        return result[0]
 
     def rocks_for_packages(self, *sources: str) -> Iterable[SunbeamRock]:
         binpkgs = reduce(set.union, map(package_list, sources), set())

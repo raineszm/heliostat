@@ -14,8 +14,8 @@ def show(source: str):
 
 
 @package_app.command()
-def rocks(source: str):
+def rocks(sources: list[str]):
     """List all rocks built from this source package."""
     repo = SunbeamRockRepo.ensure()
-    for rock in repo.rocks_for_package(source):
+    for rock in repo.rocks_for_packages(*sources):
         typer.echo(rock.name)

@@ -1,6 +1,7 @@
 import copy
 from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import reduce
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -180,8 +181,8 @@ class SunbeamRockRepo:
 
         raise ValueError(f"No rock found with name '{name}'")
 
-    def rocks_for_package(self, source: str) -> Iterable[SunbeamRock]:
-        binpkgs = set(package_list(source))
+    def rocks_for_packages(self, *sources: str) -> Iterable[SunbeamRock]:
+        binpkgs = reduce(set.union, map(package_list, sources), set())
         for rock in self.rocks():
             if rock.rockcraft_yaml().deps().intersection(binpkgs):
                 yield rock

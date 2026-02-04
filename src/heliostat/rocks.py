@@ -7,6 +7,7 @@ from typing import Any, Literal, Protocol
 import msgspec
 from ruamel.yaml import YAML
 
+from heliostat.component import package_list
 from heliostat.git import ensure_repo
 
 
@@ -128,6 +129,14 @@ class RockcraftFile:
             patch.apply(yaml)
         return RockcraftFile(yaml)
 
+    def deps(self) -> set[str]:
+        deps = set()
+        for part in self.yaml["parts"].values():
+            if "overlay-packages" in part:
+                deps.update(part["overlay-packages"])
+
+        return deps
+
 
 class SunbeamRock:
     def __init__(self, path: Path):
@@ -170,3 +179,9 @@ class SunbeamRockRepo:
                 return rock
 
         raise ValueError(f"No rock found with name '{name}'")
+
+    def rocks_for_package(self, source: str) -> Iterable[SunbeamRock]:
+        binpkgs = set(package_list(source))
+        for rock in self.rocks():
+            if rock.rockcraft_yaml().deps().intersection(binpkgs):
+                yield rock

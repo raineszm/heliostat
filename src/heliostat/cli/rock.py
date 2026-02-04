@@ -44,8 +44,12 @@ def list():
 def show(rock_name: str):
     rock = _get_rock(rock_name)
     typer.echo(f"Rock: {rock.name}")
+    typer.echo("Repositories:")
     for pkg_repo in rock.rockcraft_yaml().repositories():
         typer.echo(pkg_repo)
+    typer.echo("Dependencies:")
+    for dep in rock.rockcraft_yaml().deps:
+        typer.echo(dep)
 
 
 @rock_app.command()

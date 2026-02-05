@@ -3,15 +3,15 @@ from __future__ import annotations
 import copy
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import reduce
 from pathlib import Path
 from typing import Any, Literal, Protocol, Self
 
 import msgspec
 from ruamel.yaml import YAML
 
-from heliostat.component import package_list
-from heliostat.git import ensure_repo
+from heliostat.component import DEFAULT_RELEASE, package_list
+from heliostat.fetch import ensure_repo
+from heliostat.types import Base, Release, Series
 
 
 class Patch(Protocol):
@@ -28,18 +28,8 @@ class AddPpa(Patch):
         )
 
 
-Release = Literal["yoga", "antelope", "caracal", "epoxy"]
-Series = Literal["jammy", "noble"]
-Base = Literal["ubuntu@22.04", "ubuntu@24.04"]
-
-
 @dataclass
 class SetUcaRelease(Patch):
-    DEFAULT_RELEASE = {
-        "jammy": "yoga",
-        "noble": "caracal",
-    }
-
     release: Release
     series: Series | None
 
@@ -47,17 +37,23 @@ class SetUcaRelease(Patch):
         # if we're using the default pairing, we can just fall back to
         # the ubuntu archives
         series = self.series or "noble"
-        if self.DEFAULT_RELEASE.get(series) == self.release:
-            del rockcraft[RockcraftFile.REPO_KEY][0]
+        package_repos = rockcraft.setdefault(RockcraftFile.REPO_KEY, [])
+        if DEFAULT_RELEASE.get(series) == self.release:
+            if package_repos:
+                del rockcraft[RockcraftFile.REPO_KEY][0]
             return
 
-        cloud_repo = msgspec.convert(
-            rockcraft[RockcraftFile.REPO_KEY][0], CloudPackageRepository
-        )
+        if package_repos:
+            cloud_repo = msgspec.convert(
+                rockcraft[RockcraftFile.REPO_KEY][0], CloudPackageRepository
+            )
+            cloud_repo.cloud = self.release
+            package_repos[0] = msgspec.to_builtins(cloud_repo)
+        else:
+            cloud_repo = CloudPackageRepository(type="apt", cloud=self.release)
+            package_repos.append(msgspec.to_builtins(cloud_repo))
 
-        cloud_repo.cloud = self.release
-
-        rockcraft[RockcraftFile.REPO_KEY][0] = msgspec.to_builtins(cloud_repo)
+        rockcraft[RockcraftFile.REPO_KEY] = package_repos
 
 
 @dataclass
@@ -164,9 +160,17 @@ class SunbeamRockRepo:
 
     REPO_URI = "https://github.com/canonical/ubuntu-openstack-rocks.git"
 
+    RELEASE_BRANCH = {
+        "antelope": "stable/2023.1",
+        "bobcat": "stable/2023.2",
+        "caracal": "stable/2024.1",
+        "dalmation": "dalmation",
+        "epoxy": "main",
+    }
+
     @classmethod
-    def ensure(cls) -> Self:
-        local_path = ensure_repo(cls.REPO_URI)
+    def ensure(cls, release: Release = "epoxy") -> Self:
+        local_path = ensure_repo(cls.REPO_URI, branch=cls.RELEASE_BRANCH[release])
         return cls(local_path)
 
     def __init__(self, path: Path):
@@ -183,8 +187,10 @@ class SunbeamRockRepo:
             raise ValueError(f"No rock found with name '{name}'")
         return result[0]
 
-    def rocks_for_packages(self, *sources: str) -> Iterable[SunbeamRock]:
-        binpkgs = reduce(set.union, map(package_list, sources), set())
+    def rocks_for_packages(
+        self, *sources: str, series: Series, release: Release
+    ) -> Iterable[SunbeamRock]:
+        binpkgs = set(package_list(list(sources), series=series, release=release))
         for rock in self.rocks():
             if rock.rockcraft_yaml().deps().intersection(binpkgs):
                 yield rock

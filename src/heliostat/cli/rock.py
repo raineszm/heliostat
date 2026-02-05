@@ -11,20 +11,21 @@ from ruamel.yaml import YAML
 
 from heliostat.rocks import (
     AddPpa,
-    Release,
     RockcraftFile,
-    Series,
     SetBase,
     SetUcaRelease,
     SunbeamRockRepo,
 )
+from heliostat.types import Release, Series
 
 rock_app = typer.Typer()
 
 
-def _get_rock(rock_name: str, repo: SunbeamRockRepo | None = None):
+def _get_rock(
+    rock_name: str, repo: SunbeamRockRepo | None = None, release: Release = "epoxy"
+):
     if repo is None:
-        repo = SunbeamRockRepo.ensure()
+        repo = SunbeamRockRepo.ensure(release=release)
     try:
         rock = repo.rock(rock_name)
     except ValueError as e:
@@ -68,7 +69,7 @@ def patch(
     release: Annotated[Release | None, typer.Option()] = None,
     series: Annotated[Series | None, typer.Option()] = None,
 ):
-    rock = _get_rock(rock_name)
+    rock = _get_rock(rock_name, release=release or "epoxy")
     rockcraft = _get_patched(
         rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
     )
@@ -113,10 +114,13 @@ def build(
 ):
     output_dir = output_dir or Path.cwd()
 
-    repo = SunbeamRockRepo.ensure()
+    repo = SunbeamRockRepo.ensure(release=release or "epoxy")
 
     for rock in itertools.chain(
-        repo.rocks(set(rocks)), repo.rocks_for_packages(*sources)
+        repo.rocks(set(rocks)),
+        repo.rocks_for_packages(
+            *sources, series=series or "noble", release=release or "epoxy"
+        ),
     ):
         rockcraft = _get_patched(
             rock.rockcraft_yaml(), ppa=ppa, release=release, series=series

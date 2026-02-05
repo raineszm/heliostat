@@ -4,11 +4,15 @@ from pathlib import Path
 import xdg_base_dirs as xdg
 
 
+def cache_dir() -> Path:
+    return xdg.xdg_cache_home() / "heliostat"
+
+
 def repo_path(name: str) -> Path:
-    return xdg.xdg_cache_home() / "heliostat" / name
+    return cache_dir() / name
 
 
-def ensure_repo(uri: str) -> Path:
+def ensure_repo(uri: str, branch: str = "main") -> Path:
     name = uri.split("/")[-1].strip(".git")
     path = repo_path(name)
     if not path.exists():
@@ -20,7 +24,6 @@ def ensure_repo(uri: str) -> Path:
                 [
                     "git",
                     "clone",
-                    "--depth=1",
                     "--",
                     uri,
                     path,
@@ -28,4 +31,18 @@ def ensure_repo(uri: str) -> Path:
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to clone repo: {e}")
+
+    try:
+        subprocess.check_call(
+            [
+                "git",
+                "switch",
+                "--detach",
+                f"origin/{branch}",
+            ],
+            cwd=path,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to switch to branch: {e}")
+
     return path

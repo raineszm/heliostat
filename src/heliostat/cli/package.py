@@ -8,14 +8,20 @@ package_app = typer.Typer()
 
 
 @package_app.command()
-def show(source: str, series: Series = "noble", release: Release = "epoxy"):
+def show(
+    source: str, series: Series = Series.default(), release: Release = Release.default()
+):
     """List all binary packages built from this source package."""
     for binpkg in package_list([source], series=series, release=release):
         typer.echo(binpkg)
 
 
 @package_app.command()
-def rocks(sources: list[str], series: Series = "noble", release: Release = "epoxy"):
+def rocks(
+    sources: list[str],
+    series: Series = Series.default(),
+    release: Release = Release.default(),
+):
     """List all rocks built from this source package."""
     repo = SunbeamRockRepo.ensure(release=release)
     for rock in repo.rocks_for_packages(*sources, series=series, release=release):

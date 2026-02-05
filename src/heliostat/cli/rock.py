@@ -22,7 +22,9 @@ rock_app = typer.Typer()
 
 
 def _get_rock(
-    rock_name: str, repo: SunbeamRockRepo | None = None, release: Release = "epoxy"
+    rock_name: str,
+    repo: SunbeamRockRepo | None = None,
+    release: Release = Release.default(),
 ):
     if repo is None:
         repo = SunbeamRockRepo.ensure(release=release)
@@ -35,16 +37,18 @@ def _get_rock(
 
 
 @rock_app.command(name="list")
-def list_cmd():
-    repo = SunbeamRockRepo.ensure()
+def list_cmd(release: Annotated[Release, typer.Option()] = Release.default()):
+    repo = SunbeamRockRepo.ensure(release=release)
 
     for folder in repo.rocks():
         typer.echo(folder.name)
 
 
 @rock_app.command()
-def show(rock_name: str):
-    rock = _get_rock(rock_name)
+def show(
+    rock_name: str, release: Annotated[Release, typer.Option()] = Release.default()
+):
+    rock = _get_rock(rock_name, release=release)
     typer.echo(f"Rock: {rock.name}")
     typer.echo("Repositories:")
     for pkg_repo in rock.rockcraft_yaml().repositories():
@@ -66,10 +70,10 @@ def patch(
         ),
     ] = None,
     ppa: Annotated[str | None, typer.Option()] = None,
-    release: Annotated[Release | None, typer.Option()] = None,
-    series: Annotated[Series | None, typer.Option()] = None,
+    release: Annotated[Release, typer.Option()] = Release.default(),
+    series: Annotated[Series, typer.Option()] = Series.default(),
 ):
-    rock = _get_rock(rock_name, release=release or "epoxy")
+    rock = _get_rock(rock_name, release=release)
     rockcraft = _get_patched(
         rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
     )
@@ -109,18 +113,16 @@ def build(
         ),
     ] = None,
     ppa: Annotated[str | None, typer.Option()] = None,
-    release: Annotated[Release | None, typer.Option()] = None,
-    series: Annotated[Series | None, typer.Option()] = None,
+    release: Annotated[Release, typer.Option()] = Release.default(),
+    series: Annotated[Series, typer.Option()] = Series.default(),
 ):
     output_dir = output_dir or Path.cwd()
 
-    repo = SunbeamRockRepo.ensure(release=release or "epoxy")
+    repo = SunbeamRockRepo.ensure(release=release)
 
     for rock in itertools.chain(
         repo.rocks(set(rocks)),
-        repo.rocks_for_packages(
-            *sources, series=series or "noble", release=release or "epoxy"
-        ),
+        repo.rocks_for_packages(*sources, series=series, release=release),
     ):
         rockcraft = _get_patched(
             rock.rockcraft_yaml(), ppa=ppa, release=release, series=series

@@ -9,7 +9,7 @@ from typing import Any, Literal, Protocol, Self
 import msgspec
 from ruamel.yaml import YAML
 
-from heliostat.component import DEFAULT_RELEASE, package_list
+from heliostat.component import package_list
 from heliostat.fetch import ensure_repo
 from heliostat.types import Base, Release, Series
 
@@ -31,14 +31,13 @@ class AddPpa(Patch):
 @dataclass
 class SetUcaRelease(Patch):
     release: Release
-    series: Series | None
+    series: Series = Series.default()
 
     def apply(self, rockcraft: dict[str, Any]):
         # if we're using the default pairing, we can just fall back to
         # the ubuntu archives
-        series = self.series or "noble"
         package_repos = rockcraft.setdefault(RockcraftFile.REPO_KEY, [])
-        if DEFAULT_RELEASE.get(series) == self.release:
+        if self.series.default_release() == self.release:
             if package_repos:
                 del rockcraft[RockcraftFile.REPO_KEY][0]
             return
@@ -58,17 +57,14 @@ class SetUcaRelease(Patch):
 
 @dataclass
 class SetBase(Patch):
-    SERIES_TO_BASE = {
-        "jammy": "ubuntu@22.04",
-        "noble": "ubuntu@24.04",
-    }
-
     series_or_base: Series | Base
 
     def apply(self, rockcraft: dict[str, Any]):
-        rockcraft[RockcraftFile.BASE_KEY] = self.SERIES_TO_BASE.get(
-            self.series_or_base, self.series_or_base
-        )
+        if isinstance(self.series_or_base, Series):
+            base = self.series_or_base.to_base()
+        else:
+            base = self.series_or_base
+        rockcraft[RockcraftFile.BASE_KEY] = str(base)
 
 
 Priority = Literal["always", "prefer", "defer"] | int

@@ -67,6 +67,15 @@ class SetBase(Patch):
         rockcraft[RockcraftFile.BASE_KEY] = str(base)
 
 
+@dataclass
+class SetVersionString(Patch):
+    suffix: str
+
+    def apply(self, rockcraft: dict[str, Any]):
+        version = rockcraft[RockcraftFile.VERSION_KEY]
+        rockcraft[RockcraftFile.VERSION_KEY] = f"{version}-{self.suffix}"
+
+
 Priority = Literal["always", "prefer", "defer"] | int
 
 
@@ -105,6 +114,7 @@ class RockcraftFile:
 
     BASE_KEY = "base"
     REPO_KEY = "package-repositories"
+    VERSION_KEY = "version"
 
     def __init__(self, yaml: dict[str, Any]):
         self.yaml = yaml

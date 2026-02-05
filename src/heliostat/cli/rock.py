@@ -14,6 +14,7 @@ from heliostat.rocks import (
     RockcraftFile,
     SetBase,
     SetUcaRelease,
+    SetVersionString,
     SunbeamRockRepo,
 )
 from heliostat.types import Release, Series
@@ -72,10 +73,20 @@ def patch(
     ppa: Annotated[str | None, typer.Option()] = None,
     release: Annotated[Release, typer.Option()] = Release.default(),
     series: Annotated[Series, typer.Option()] = Series.default(),
+    suffix: Annotated[
+        str,
+        typer.Option(
+            help="Version suffix for the rock",
+        ),
+    ] = "heliostat",
 ):
     rock = _get_rock(rock_name, release=release)
     rockcraft = _get_patched(
-        rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
+        rock.rockcraft_yaml(),
+        ppa=ppa,
+        release=release,
+        series=series,
+        version_suffix=suffix,
     )
 
     yaml = YAML()
@@ -115,6 +126,12 @@ def build(
     ppa: Annotated[str | None, typer.Option()] = None,
     release: Annotated[Release, typer.Option()] = Release.default(),
     series: Annotated[Series, typer.Option()] = Series.default(),
+    suffix: Annotated[
+        str,
+        typer.Option(
+            help="Version suffix for the rock",
+        ),
+    ] = "heliostat",
 ):
     output_dir = output_dir or Path.cwd()
 
@@ -125,7 +142,11 @@ def build(
         repo.rocks_for_packages(*sources, series=series, release=release),
     ):
         rockcraft = _get_patched(
-            rock.rockcraft_yaml(), ppa=ppa, release=release, series=series
+            rock.rockcraft_yaml(),
+            ppa=ppa,
+            release=release,
+            series=series,
+            version_suffix=suffix,
         )
 
         do_build(rock.name, rockcraft, output_dir)
@@ -149,7 +170,8 @@ def _get_patched(
     rock: RockcraftFile,
     ppa: str | None,
     release: Release | None,
-    series: Series | None,
+    series: Series,
+    version_suffix: str | None = None,
 ) -> RockcraftFile:
     patches = []
     if ppa:
@@ -158,8 +180,10 @@ def _get_patched(
     if release:
         patches.append(SetUcaRelease(release=release, series=series))
 
-    if series:
-        patches.append(SetBase(series_or_base=series))
+    patches.append(SetBase(series_or_base=series))
+
+    if version_suffix:
+        patches.append(SetVersionString(suffix=version_suffix))
 
     return rock.patch(patches)
 

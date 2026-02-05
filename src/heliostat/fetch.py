@@ -36,6 +36,18 @@ def ensure_repo(uri: str, branch: str = "main") -> Path:
         subprocess.check_call(
             [
                 "git",
+                "fetch",
+                "--all",
+            ],
+            cwd=path,
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to fetch repo: {e}")
+
+    try:
+        subprocess.check_call(
+            [
+                "git",
                 "switch",
                 "--detach",
                 f"origin/{branch}",

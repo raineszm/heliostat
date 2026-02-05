@@ -167,15 +167,15 @@ class SunbeamRockRepo:
     REPO_URI = "https://github.com/canonical/ubuntu-openstack-rocks.git"
 
     RELEASE_BRANCH = {
-        "antelope": "stable/2023.1",
-        "bobcat": "stable/2023.2",
-        "caracal": "stable/2024.1",
-        "dalmation": "dalmation",
-        "epoxy": "main",
+        Release.ANTELOPE: "stable/2023.1",
+        Release.BOBCAT: "stable/2023.2",
+        Release.CARACAL: "stable/2024.1",
+        Release.DALMATIAN: "dalmatian",
+        Release.EPOXY: "main",
     }
 
     @classmethod
-    def ensure(cls, release: Release = "epoxy") -> Self:
+    def ensure(cls, release: Release = Release.default()) -> Self:
         local_path = ensure_repo(cls.REPO_URI, branch=cls.RELEASE_BRANCH[release])
         return cls(local_path)
 
@@ -183,9 +183,11 @@ class SunbeamRockRepo:
         self.path = path
 
     def rocks(self, names: set[str] | None = None) -> Iterable[SunbeamRock]:
-        for rock_dir in (self.path / "rocks").iterdir():
-            if names is None or rock_dir.name in names:
-                yield SunbeamRock(rock_dir)
+        return (
+            SunbeamRock(rock_dir)
+            for rock_dir in (self.path / "rocks").iterdir()
+            if names is None or rock_dir.name in names
+        )
 
     def rock(self, name: str) -> SunbeamRock:
         result = list(self.rocks({name}))
@@ -197,6 +199,8 @@ class SunbeamRockRepo:
         self, *sources: str, series: Series, release: Release
     ) -> Iterable[SunbeamRock]:
         binpkgs = set(package_list(list(sources), series=series, release=release))
-        for rock in self.rocks():
-            if rock.rockcraft_yaml().deps().intersection(binpkgs):
-                yield rock
+        return (
+            rock
+            for rock in self.rocks()
+            if rock.rockcraft_yaml().deps().intersection(binpkgs)
+        )

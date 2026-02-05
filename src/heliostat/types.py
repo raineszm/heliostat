@@ -9,7 +9,7 @@ class Release(StrEnum):
     ANTELOPE = "antelope"
     BOBCAT = "bobcat"
     CARACAL = "caracal"
-    DALMATION = "dalmation"
+    DALMATIAN = "dalmatian"
     EPOXY = "epoxy"
     FLAMINGO = "flamingo"
     GAZPACHO = "gazpacho"

@@ -13,7 +13,7 @@ def repo_path(name: str) -> Path:
 
 
 def ensure_repo(uri: str, branch: str = "main") -> Path:
-    name = uri.split("/")[-1].strip(".git")
+    name = uri.split("/")[-1].removesuffix(".git")
     path = repo_path(name)
     if not path.exists():
         # Set up parent cache dir

@@ -2,6 +2,7 @@ import gzip
 from collections.abc import Iterable
 
 import requests
+from debian import deb822
 
 from heliostat.types import Pocket, Release, Series
 
@@ -24,30 +25,9 @@ def uca_packages(sources: set[str], series: Series, release: Release):
 
     data = gzip.decompress(response.content).decode("utf-8")
 
-    lines = data.splitlines()
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if line.startswith("Package: "):
-            source_pkg = line.split()[1].strip()
-            if source_pkg in sources:
-                yield from _parse_bin_pkgs(lines, i)
-
-        i += 1
-
-
-def _parse_bin_pkgs(lines: list[str], start: int) -> Iterable[str]:
-    i = start + 1
-    while i < len(lines):
-        line = lines[i]
-        if line.startswith("Package-List:"):
-            yield line.removeprefix("Package-List: ").split()[0]
-            i += 1
-            break
-        i += 1
-    while i < len(lines) and lines[i].startswith(" "):
-        yield lines[i].strip().split()[0]
-        i += 1
+    for source_pkg in deb822.Sources.iter_paragraphs(data, use_apt_pkg=False):
+        if source_pkg["Package"] in sources:
+            yield from (pkg["package"] for pkg in source_pkg["Package-List"])
 
 
 def rmadison_url(source: str, series: Series):

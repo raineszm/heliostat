@@ -95,6 +95,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "msgspec" },
+    { name = "python-debian" },
     { name = "requests" },
     { name = "rich" },
     { name = "ruamel-yaml" },
@@ -112,6 +113,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "msgspec", specifier = ">=0.20.0" },
+    { name = "python-debian", specifier = ">=1.0.1" },
     { name = "requests", specifier = ">=2.32.5" },
     { name = "rich", specifier = ">=14.3.1" },
     { name = "ruamel-yaml", specifier = ">=0.19.1" },
@@ -227,6 +229,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/b0/77/a5b8c569bf593b0140bde72ea885a803b82086995367bf2037de0159d924/pygments-2.19.2.tar.gz", hash = "sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887", size = 4968631, upload-time = "2025-06-21T13:39:12.283Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b", size = 1225217, upload-time = "2025-06-21T13:39:07.939Z" },
+]
+
+[[package]]
+name = "python-debian"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "charset-normalizer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bf/4b/3c4cf635311b6203f17c2d693dc15e898969983dd3f729bee3c428aa60d4/python-debian-1.0.1.tar.gz", hash = "sha256:3ada9b83a3d671b58081782c0969cffa0102f6ce433fbbc7cf21275b8b5cc771", size = 127249, upload-time = "2025-03-11T12:27:27.245Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/15/e8096189b18dda72e4923622abc10b021ecff723b397e22eff29fb86637b/python_debian-1.0.1-py3-none-any.whl", hash = "sha256:8f137c230c1d9279c2ac892b35915068b2aca090c9fd3da5671ff87af32af12c", size = 137453, upload-time = "2025-03-11T12:27:25.014Z" },
 ]
 
 [[package]]

@@ -17,6 +17,6 @@ def show(source: str, series: Series = "noble", release: Release = "epoxy"):
 @package_app.command()
 def rocks(sources: list[str], series: Series = "noble", release: Release = "epoxy"):
     """List all rocks built from this source package."""
-    repo = SunbeamRockRepo.ensure()
+    repo = SunbeamRockRepo.ensure(release=release)
     for rock in repo.rocks_for_packages(*sources, series=series, release=release):
         typer.echo(rock.name)

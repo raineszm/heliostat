@@ -167,16 +167,23 @@ class SunbeamRockRepo:
     REPO_URI = "https://github.com/canonical/ubuntu-openstack-rocks.git"
 
     RELEASE_BRANCH = {
+        Release.YOGA: "stable/2023.1",
+        Release.ZED: "stable/2023.1",
+        # Clamp to oldest available branch ^^
         Release.ANTELOPE: "stable/2023.1",
         Release.BOBCAT: "stable/2023.2",
         Release.CARACAL: "stable/2024.1",
         Release.DALMATIAN: "dalmatian",
         Release.EPOXY: "main",
+        # Clamp to newest available branch VV
+        Release.FLAMINGO: "main",
     }
 
     @classmethod
     def ensure(cls, release: Release = Release.default()) -> Self:
-        local_path = ensure_repo(cls.REPO_URI, branch=cls.RELEASE_BRANCH[release])
+        local_path = ensure_repo(
+            cls.REPO_URI, branch=cls.RELEASE_BRANCH.get(release, "main")
+        )
         return cls(local_path)
 
     def __init__(self, path: Path):

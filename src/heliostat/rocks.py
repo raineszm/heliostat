@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -189,12 +190,33 @@ class SunbeamRockRepo:
     def __init__(self, path: Path):
         self.path = path
 
-    def rocks(self, names: set[str] | None = None) -> Iterable[SunbeamRock]:
-        return (
-            SunbeamRock(rock_dir)
-            for rock_dir in (self.path / "rocks").iterdir()
-            if names is None or rock_dir.name in names
-        )
+    def _matching_rocks(self, names: set[str] | None = None) -> Iterable[SunbeamRock]:
+        """Yield all rocks, optionally filtered by name."""
+        for rock_dir in sorted((self.path / "rocks").iterdir()):
+            if names is None or rock_dir.name in names:
+                yield SunbeamRock(rock_dir)
+
+    def _consolidate(self, rocks: Iterable[SunbeamRock]) -> Iterable[SunbeamRock]:
+        """Prefer ``-consolidated`` variants when multiple rocks share a prefix."""
+        for _prefix, group in itertools.groupby(
+            rocks, key=lambda r: r.name.split("-")[0]
+        ):
+            family = list(group)
+            consolidated_rock = next(
+                (r for r in family if r.name.endswith("-consolidated")), None
+            )
+            if consolidated_rock is not None:
+                yield consolidated_rock
+            else:
+                yield from family
+
+    def rocks(
+        self, names: set[str] | None = None, consolidated: bool = False
+    ) -> Iterable[SunbeamRock]:
+        all_rocks = self._matching_rocks(names)
+        if consolidated:
+            return self._consolidate(all_rocks)
+        return all_rocks
 
     def rock(self, name: str) -> SunbeamRock:
         result = list(self.rocks({name}))
@@ -203,11 +225,15 @@ class SunbeamRockRepo:
         return result[0]
 
     def rocks_for_packages(
-        self, *sources: str, series: Series, release: Release
+        self,
+        *sources: str,
+        series: Series,
+        release: Release,
+        consolidated: bool = False,
     ) -> Iterable[SunbeamRock]:
         binpkgs = set(package_list(list(sources), series=series, release=release))
         return (
             rock
-            for rock in self.rocks()
+            for rock in self.rocks(consolidated=consolidated)
             if rock.rockcraft_yaml().deps().intersection(binpkgs)
         )

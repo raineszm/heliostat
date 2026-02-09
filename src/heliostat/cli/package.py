@@ -21,8 +21,11 @@ def rocks(
     sources: list[str],
     series: Series = Series.default(),
     release: Release = Release.default(),
+    consolidated: bool = False,
 ):
     """List all rocks built from this source package."""
     repo = SunbeamRockRepo.ensure(release=release)
-    for rock in repo.rocks_for_packages(*sources, series=series, release=release):
+    for rock in repo.rocks_for_packages(
+        *sources, series=series, release=release, consolidated=consolidated
+    ):
         typer.echo(rock.name)

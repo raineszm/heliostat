@@ -1,0 +1,3 @@
+kind: Added
+body: Consolidated flag which attempts to only build all-one-rocks for each component when possible.
+time: 2026-02-09T16:58:28.720473474-06:00

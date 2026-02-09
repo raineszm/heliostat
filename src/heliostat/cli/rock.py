@@ -132,6 +132,12 @@ def build(
             help="Version suffix for the rock",
         ),
     ] = "heliostat",
+    consolidated: Annotated[
+        bool,
+        typer.Option(
+            help="Build only a single consolidated rock for this package if the option is available.",
+        ),
+    ] = False,
 ):
     output_dir = output_dir or Path.cwd()
 

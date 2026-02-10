@@ -18,6 +18,7 @@ from heliostat.rocks import (
     SunbeamRockRepo,
 )
 from heliostat.types import Release, Series
+from heliostat.workarounds import Workaround, get_workarounds
 
 rock_app = typer.Typer()
 
@@ -90,14 +91,27 @@ def patch(
             help="Version suffix for the rock",
         ),
     ] = "heliostat",
+    enable_workarounds: Annotated[
+        bool,
+        typer.Option(
+            help="Automatically apply workarounds for common incompatibilities"
+            " between sunbeam charms and unsupported openstack versions",
+        ),
+    ] = True,
 ):
     rock = _get_rock(rock_name, release=release)
+
+    if enable_workarounds:
+        workarounds = get_workarounds(rock, release, series)
+    else:
+        workarounds = []
     rockcraft = _get_patched(
         rock.rockcraft_yaml(),
         ppa=ppa,
         release=release,
         series=series,
         version_suffix=suffix,
+        workarounds=workarounds,
     )
 
     yaml = YAML()
@@ -156,6 +170,13 @@ def build(
             "the option is available.",
         ),
     ] = False,
+    enable_workarounds: Annotated[
+        bool,
+        typer.Option(
+            help="Automatically apply workarounds for common incompatibilities"
+            " between sunbeam charms and unsupported openstack versions",
+        ),
+    ] = True,
 ):
     output_dir = output_dir or Path.cwd()
 
@@ -165,20 +186,32 @@ def build(
         repo.rocks(set(rocks)),
         repo.rocks_for_packages(*sources, series=series, release=release),
     ):
+        if enable_workarounds:
+            workarounds = get_workarounds(rock, release, series)
+        else:
+            workarounds = []
         rockcraft = _get_patched(
             rock.rockcraft_yaml(),
             ppa=ppa,
             release=release,
             series=series,
             version_suffix=suffix,
+            workarounds=workarounds,
         )
 
-        do_build(rock.name, rockcraft, output_dir)
+        do_build(rock.name, rockcraft, output_dir, workarounds=workarounds)
 
 
-def do_build(rock_name: str, rockcraft: RockcraftFile, output_dir: Path):
+def do_build(
+    rock_name: str,
+    rockcraft: RockcraftFile,
+    output_dir: Path,
+    workarounds: list[Workaround],
+):
     with TemporaryDirectory(suffix=rock_name, prefix="heliostat") as build_dir:
         build_dir = Path(build_dir)
+        for workaround in workarounds:
+            workaround.pre_build(build_dir)
         yaml = YAML()
         yaml.dump(rockcraft.yaml, build_dir / "rockcraft.yaml")
         try:
@@ -196,6 +229,7 @@ def _get_patched(
     release: Release | None,
     series: Series,
     version_suffix: str | None = None,
+    workarounds: list[Workaround] | None = None,
 ) -> RockcraftFile:
     patches = []
     if ppa:
@@ -208,6 +242,9 @@ def _get_patched(
 
     if version_suffix:
         patches.append(SetVersionString(suffix=version_suffix))
+
+    if workarounds:
+        patches.extend(workarounds)
 
     return rock.patch(patches)
 

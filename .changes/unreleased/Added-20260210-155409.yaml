@@ -1,0 +1,4 @@
+kind: Added
+body: |
+  Workarounds for common incompatibilities between charms and unsupported releases. For now this just works around the removal of the octavia-wsgi script which breaks the 2025.1 charm.
+time: 2026-02-10T15:54:09.23617867-06:00

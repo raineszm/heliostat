@@ -107,7 +107,9 @@ class DebPackageRepository(msgspec.Struct, omit_defaults=True):
     url: str | None = None
 
 
-PackageRepository = PpaPackageRepository | CloudPackageRepository | DebPackageRepository
+PackageRepository = (
+    PpaPackageRepository | CloudPackageRepository | DebPackageRepository
+)
 
 
 class RockcraftFile:
@@ -190,14 +192,19 @@ class SunbeamRockRepo:
     def __init__(self, path: Path):
         self.path = path
 
-    def _matching_rocks(self, names: set[str] | None = None) -> Iterable[SunbeamRock]:
+    def _matching_rocks(
+        self, names: set[str] | None = None
+    ) -> Iterable[SunbeamRock]:
         """Yield all rocks, optionally filtered by name."""
         for rock_dir in sorted((self.path / "rocks").iterdir()):
             if names is None or rock_dir.name in names:
                 yield SunbeamRock(rock_dir)
 
-    def _consolidate(self, rocks: Iterable[SunbeamRock]) -> Iterable[SunbeamRock]:
-        """Prefer ``-consolidated`` variants when multiple rocks share a prefix."""
+    def _consolidate(
+        self, rocks: Iterable[SunbeamRock]
+    ) -> Iterable[SunbeamRock]:
+        """Prefer ``-consolidated`` variants when multiple rocks share"""
+        """a prefix."""
         for _prefix, group in itertools.groupby(
             rocks, key=lambda r: r.name.split("-")[0]
         ):
@@ -231,7 +238,9 @@ class SunbeamRockRepo:
         release: Release,
         consolidated: bool = False,
     ) -> Iterable[SunbeamRock]:
-        binpkgs = set(package_list(list(sources), series=series, release=release))
+        binpkgs = set(
+            package_list(list(sources), series=series, release=release)
+        )
         return (
             rock
             for rock in self.rocks(consolidated=consolidated)

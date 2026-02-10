@@ -9,7 +9,9 @@ package_app = typer.Typer()
 
 @package_app.command()
 def show(
-    source: str, series: Series = Series.default(), release: Release = Release.default()
+    source: str,
+    series: Series = Series.default(),
+    release: Release = Release.default(),
 ):
     """List all binary packages built from this source package."""
     for binpkg in package_list([source], series=series, release=release):

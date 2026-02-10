@@ -9,7 +9,9 @@ from heliostat.types import Pocket, Release, Series
 UCA_BASE_URL = "https://ubuntu-cloud.archive.canonical.com/ubuntu/dists/"
 
 
-def uca_sources_url(series: Series, release: Release, pocket: Pocket = Pocket.UPDATES):
+def uca_sources_url(
+    series: Series, release: Release, pocket: Pocket = Pocket.UPDATES
+):
     return f"{UCA_BASE_URL}{series}-{pocket}/{release}/main/source/Sources.gz"
 
 
@@ -29,7 +31,9 @@ def rmadison_url(source: str, series: Series):
     return f"https://ubuntu-archive-team.ubuntu.com/madison.cgi?package={source}&a=&c=&s={series}&S=on&text=on"
 
 
-def madison_packages(source: str, series: Series = Series.default()) -> Iterable[str]:
+def madison_packages(
+    source: str, series: Series = Series.default()
+) -> Iterable[str]:
     url = rmadison_url(source, series)
     response = requests.get(url)
     response.raise_for_status()

@@ -51,7 +51,8 @@ def list_cmd(release: Annotated[Release, typer.Option()] = Release.default()):
 
 @rock_app.command()
 def show(
-    rock_name: str, release: Annotated[Release, typer.Option()] = Release.default()
+    rock_name: str,
+    release: Annotated[Release, typer.Option()] = Release.default(),
 ):
     rock = _get_rock(rock_name, release=release)
     typer.echo(f"Rock: {rock.name}")
@@ -71,7 +72,8 @@ def patch(
         typer.Option(
             "-o",
             "--output",
-            help="Output rockraft.yaml file to a specific path (Default: stdout)",
+            help="Output rockraft.yaml file to a specific path "
+            "(Default: stdout)",
         ),
     ] = None,
     ppa: Annotated[
@@ -129,7 +131,8 @@ def build(
         typer.Option(
             "-o",
             "--output-dir",
-            help="Output directory for the built rock (Default: current working directory)",
+            help="Output directory for the built rock "
+            "(Default: current working directory)",
         ),
     ] = None,
     ppa: Annotated[
@@ -149,7 +152,8 @@ def build(
     consolidated: Annotated[
         bool,
         typer.Option(
-            help="Build only a single consolidated rock for this package if the option is available.",
+            help="Build only a single consolidated rock for this package if "
+            "the option is available.",
         ),
     ] = False,
 ):

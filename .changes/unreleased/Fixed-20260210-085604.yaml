@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'Strip ppa: prefix from ppas pased with the --ppa flag.'
+time: 2026-02-10T08:56:04.036307534-06:00

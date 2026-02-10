@@ -208,7 +208,7 @@ class TestRockCommands:
             main, ["rock", "patch", "cinder-consolidated", "--ppa", "ppa:foo/bar"]
         )
         assert result.exit_code == 0
-        assert "ppa:foo/bar" in result.output
+        assert "foo/bar" in result.output
 
     def test_rock_build(self, mock_repo, mock_do_build):
         """rock build invokes do_build."""

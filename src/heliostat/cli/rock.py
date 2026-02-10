@@ -37,6 +37,10 @@ def _get_rock(
     return rock
 
 
+def _parse_ppa(ppa: str) -> str:
+    return ppa.removeprefix("ppa:")
+
+
 @rock_app.command(name="list")
 def list_cmd(release: Annotated[Release, typer.Option()] = Release.default()):
     repo = SunbeamRockRepo.ensure(release=release)
@@ -70,7 +74,12 @@ def patch(
             help="Output rockraft.yaml file to a specific path (Default: stdout)",
         ),
     ] = None,
-    ppa: Annotated[str | None, typer.Option()] = None,
+    ppa: Annotated[
+        str | None,
+        typer.Option(
+            parser=_parse_ppa,
+        ),
+    ] = None,
     release: Annotated[Release, typer.Option()] = Release.default(),
     series: Annotated[Series, typer.Option()] = Series.default(),
     suffix: Annotated[
@@ -123,7 +132,12 @@ def build(
             help="Output directory for the built rock (Default: current working directory)",
         ),
     ] = None,
-    ppa: Annotated[str | None, typer.Option()] = None,
+    ppa: Annotated[
+        str | None,
+        typer.Option(
+            parser=_parse_ppa,
+        ),
+    ] = None,
     release: Annotated[Release, typer.Option()] = Release.default(),
     series: Annotated[Series, typer.Option()] = Series.default(),
     suffix: Annotated[

@@ -1,4 +1,5 @@
 import itertools
+import re
 import shutil
 import subprocess
 from io import StringIO
@@ -38,7 +39,12 @@ def _get_rock(
     return rock
 
 
-def _parse_ppa(ppa: str) -> str:
+PPA_REGEX = re.compile(r"^(ppa:)?[a-z0-9][a-z0-9+.-]+\/[a-z0-9][a-z0-9+.-]+$")
+
+
+def validate_ppa(ppa: str) -> str:
+    if not PPA_REGEX.match(ppa):
+        raise typer.BadParameter(f"Invalid PPA: {ppa}")
     return ppa.removeprefix("ppa:")
 
 
@@ -80,7 +86,7 @@ def patch(
     ppa: Annotated[
         str | None,
         typer.Option(
-            parser=_parse_ppa,
+            callback=validate_ppa,
         ),
     ] = None,
     release: Annotated[Release, typer.Option()] = Release.default(),
@@ -152,7 +158,7 @@ def build(
     ppa: Annotated[
         str | None,
         typer.Option(
-            parser=_parse_ppa,
+            callback=validate_ppa,
         ),
     ] = None,
     release: Annotated[Release, typer.Option()] = Release.default(),

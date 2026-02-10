@@ -28,7 +28,7 @@ class WSGIShim(Workaround):
             "source": ".",
             "source-type": "local",
             "organize": {f"{self.script_name}": "usr/bin/"},
-            "stage": {"usr"},
+            "stage": ["usr"],
         }
 
     def apply(self, rockcraft: dict[str, Any]):

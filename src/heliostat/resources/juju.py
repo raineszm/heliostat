@@ -15,16 +15,16 @@ def juju_cmd(cmd: str, *args: str) -> list[str]:
     return [JUJU_BIN, cmd, "--model", SUNBEAM_MODEL] + list(args)
 
 
-def attach_resource(charm_name: str, image_name: str, digest: str):
+def attach_resource(charm_name: str, resource_name: str, image_name: str, digest: str):
     subprocess.check_call(
-        juju_cmd("attach-resource", charm_name, f"{image_name}@{digest}")
+        juju_cmd("attach-resource", charm_name, f"{resource_name}={image_name}@{digest}")
     )
 
 
-def attach_rock(charm_name: str, rock_path: Path):
+def attach_rock(charm_name: str, rock_path: Path, resource_name: str):
     rock_name = rock_path.name.split("_")[0]
     name = image_name(rock_name)
     digest = image_digest(rock_path)
     if not has_image(digest):
         import_image(rock_path, rock_name)
-    attach_resource(charm_name, name, digest)
+    attach_resource(charm_name, name, resource_name, digest)

@@ -12,7 +12,8 @@ charm_app = typer.Typer()
 def attach(
     charm: str,
     rock: Path,
+    resource_name: str,
 ):
     rock_name = rock.name.split("_")[0]
     import_image(rock, rock_name)
-    attach_rock(charm, rock)
+    attach_rock(charm, rock, resource_name)

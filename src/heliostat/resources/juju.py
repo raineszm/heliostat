@@ -27,4 +27,4 @@ def attach_rock(charm_name: str, rock_path: Path, resource_name: str):
     digest = image_digest(rock_path)
     if not has_image(digest):
         import_image(rock_path, rock_name)
-    attach_resource(charm_name, name, resource_name, digest)
+    attach_resource(charm_name, resource_name, name, digest)

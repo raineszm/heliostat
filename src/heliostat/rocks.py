@@ -24,7 +24,8 @@ class AddPpa(Patch):
     ppa: str
 
     def apply(self, rockcraft: dict[str, Any]):
-        rockcraft[RockcraftFile.REPO_KEY].append(
+        package_repos = rockcraft.setdefault(RockcraftFile.REPO_KEY, [])
+        package_repos.append(
             msgspec.to_builtins(PpaPackageRepository(type="apt", ppa=self.ppa))
         )
 

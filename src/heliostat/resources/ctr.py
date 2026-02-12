@@ -41,6 +41,7 @@ def import_image(rock_path: Path, rock_name: str):
         ctr_cmd(
             "images",
             "import",
+            "--digests",
             "--base-name",
             image_name(rock_name),
             str(rock_path),

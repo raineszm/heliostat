@@ -2,7 +2,6 @@ from pathlib import Path
 
 import typer
 
-from heliostat.resources.ctr import import_image
 from heliostat.resources.juju import attach_rock
 
 charm_app = typer.Typer()
@@ -14,6 +13,4 @@ def attach(
     rock: Path,
     resource_name: str,
 ):
-    rock_name = rock.name.split("_")[0]
-    import_image(rock, rock_name)
     attach_rock(charm, rock, resource_name)

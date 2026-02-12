@@ -18,7 +18,9 @@ FAKE_REGISTRY = "phantom-registry.zmraines.com"
 
 
 def ctr_cmd(*args: str) -> list[str]:
-    return [CTR_BIN, "--address", CTR_SOCK, "--namespace", K8S_NS] + list(args)
+    return [
+        "sudo", CTR_BIN, "--address", CTR_SOCK, "--namespace", K8S_NS
+    ] + list(args)
 
 
 def image_name(rock_name: str) -> str:

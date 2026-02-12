@@ -42,7 +42,7 @@ def _get_rock(
 PPA_REGEX = re.compile(r"^(ppa:)?[a-z0-9][a-z0-9+.-]+\/[a-z0-9][a-z0-9+.-]+$")
 
 
-def validate_ppa(ppa: str|None) -> str | None:
+def validate_ppa(ppa: str | None) -> str | None:
     if ppa is None:
         return None
     if not PPA_REGEX.match(ppa):

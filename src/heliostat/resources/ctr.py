@@ -19,7 +19,12 @@ FAKE_REGISTRY = "phantom-registry.zmraines.com"
 
 def ctr_cmd(*args: str) -> list[str]:
     return [
-        "sudo", CTR_BIN, "--address", CTR_SOCK, "--namespace", K8S_NS
+        "sudo",
+        CTR_BIN,
+        "--address",
+        CTR_SOCK,
+        "--namespace",
+        K8S_NS,
     ] + list(args)
 
 

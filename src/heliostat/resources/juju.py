@@ -15,9 +15,15 @@ def juju_cmd(cmd: str, *args: str) -> list[str]:
     return [JUJU_BIN, cmd, "--model", SUNBEAM_MODEL] + list(args)
 
 
-def attach_resource(charm_name: str, resource_name: str, image_name: str, digest: str):
+def attach_resource(
+    charm_name: str, resource_name: str, image_name: str, digest: str
+):
     subprocess.check_call(
-        juju_cmd("attach-resource", charm_name, f"{resource_name}={image_name}@{digest}")
+        juju_cmd(
+            "attach-resource",
+            charm_name,
+            f"{resource_name}={image_name}@{digest}",
+        )
     )
 
 

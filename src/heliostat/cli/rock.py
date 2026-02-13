@@ -240,11 +240,16 @@ def _get_patched(
     workarounds: list[Workaround] | None = None,
 ) -> RockcraftFile:
     patches = []
-    if ppa:
-        patches.append(AddPpa(ppa=ppa))
+
+    # NOTE(zmraines): The order that patches are added is significant.
+    # It might be good in the future to think about how to make the order
+    # more explicit.
 
     if release:
         patches.append(SetUcaRelease(release=release, series=series))
+
+    if ppa:
+        patches.append(AddPpa(ppa=ppa))
 
     patches.append(SetBase(series_or_base=series))
 

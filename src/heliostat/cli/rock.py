@@ -10,6 +10,7 @@ from typing import Annotated
 import typer
 from ruamel.yaml import YAML
 
+from heliostat.cli._bins import check_bins
 from heliostat.rocks import (
     AddPpa,
     RockcraftFile,
@@ -264,4 +265,10 @@ def _get_patched(
 
 @rock_app.callback(no_args_is_help=True)
 def _setup():
+    check_bins(
+        [
+            shutil.which("git") or "/usr/bin/git",
+            shutil.which("rockcraft") or "/snap/bin/rockcraft",
+        ]
+    )
     pass

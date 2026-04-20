@@ -2,7 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from typer.testing import CliRunner
 
 from heliostat.cli import main
@@ -48,7 +47,9 @@ CINDER_API_YAML = {
             "overlay-packages": ["sudo", "cinder-api"],
         }
     },
-    "package-repositories": [{"type": "apt", "cloud": "epoxy", "priority": "always"}],
+    "package-repositories": [
+        {"type": "apt", "cloud": "epoxy", "priority": "always"}
+    ],
 }
 
 # Binary packages that cinder source produces
@@ -70,73 +71,40 @@ def make_mock_rock(name: str, yaml_data: dict) -> MagicMock:
     return rock
 
 
-@pytest.fixture
-def mock_repo():
-    """Mock SunbeamRockRepo.ensure() to return a fake repo with cinder rocks."""
-    with patch("heliostat.cli.rock.SunbeamRockRepo") as mock_cls:
-        mock_instance = MagicMock()
-        mock_cls.ensure.return_value = mock_instance
+def make_mock_repo() -> MagicMock:
+    """Create a configured SunbeamRockRepo mock instance."""
+    mock_instance = MagicMock()
 
-        mock_cinder_consolidated = make_mock_rock(
-            "cinder-consolidated", CINDER_CONSOLIDATED_YAML
-        )
-        mock_cinder_api = make_mock_rock("cinder-api", CINDER_API_YAML)
+    mock_cinder_consolidated = make_mock_rock(
+        "cinder-consolidated", CINDER_CONSOLIDATED_YAML
+    )
+    mock_cinder_api = make_mock_rock("cinder-api", CINDER_API_YAML)
 
-        all_rocks = [mock_cinder_consolidated, mock_cinder_api]
-        rocks_by_name = {r.name: r for r in all_rocks}
+    all_rocks = [mock_cinder_consolidated, mock_cinder_api]
+    rocks_by_name = {r.name: r for r in all_rocks}
 
-        def get_rocks(names=None):
-            if names is None:
-                return all_rocks
-            return [r for r in all_rocks if r.name in names]
+    def get_rocks(names=None):
+        if names is None:
+            return all_rocks
+        return [r for r in all_rocks if r.name in names]
 
-        mock_instance.rocks.side_effect = get_rocks
+    mock_instance.rocks.side_effect = get_rocks
 
-        def get_rock(name):
-            if name in rocks_by_name:
-                return rocks_by_name[name]
-            raise ValueError(f"No rock found with name '{name}'")
+    def get_rock(name):
+        if name in rocks_by_name:
+            return rocks_by_name[name]
+        raise ValueError(f"No rock found with name '{name}'")
 
-        mock_instance.rock.side_effect = get_rock
+    mock_instance.rock.side_effect = get_rock
 
-        # rocks_for_packages returns empty when no sources provided
-        mock_instance.rocks_for_packages.return_value = []
+    def rocks_for_packages(*sources, **kwargs):
+        if sources:
+            return all_rocks
+        return []
 
-        yield mock_cls
+    mock_instance.rocks_for_packages.side_effect = rocks_for_packages
 
-
-@pytest.fixture
-def mock_package_repo():
-    """Mock SunbeamRockRepo for package commands."""
-    with patch("heliostat.cli.package.SunbeamRockRepo") as mock_cls:
-        mock_instance = MagicMock()
-        mock_cls.ensure.return_value = mock_instance
-
-        mock_cinder_consolidated = make_mock_rock(
-            "cinder-consolidated", CINDER_CONSOLIDATED_YAML
-        )
-        mock_cinder_api = make_mock_rock("cinder-api", CINDER_API_YAML)
-
-        all_rocks = [mock_cinder_consolidated, mock_cinder_api]
-        mock_instance.rocks_for_packages.return_value = all_rocks
-
-        yield mock_cls
-
-
-@pytest.fixture
-def mock_package_list():
-    """Mock package_list to return cinder binary packages."""
-    with patch("heliostat.cli.package.package_list") as mock:
-        mock.return_value = CINDER_BINARY_PACKAGES
-        yield mock
-
-
-@pytest.fixture
-def mock_do_build():
-    """Mock do_build to avoid running rockcraft subprocess."""
-    with patch("heliostat.cli.rock.do_build") as mock:
-        mock.return_value = None
-        yield mock
+    return mock_instance
 
 
 # =============================================================================
@@ -155,7 +123,7 @@ class TestMainCli:
     def test_no_args_shows_help(self):
         """Running with no args shows help."""
         result = runner.invoke(main, [])
-        # typer returns exit code 2 for no_args_is_help (vs 0 for explicit --help)
+        # typer returns exit code 2 for no_args_is_help
         assert result.exit_code == 2
         assert "Usage" in result.output
 
@@ -166,53 +134,71 @@ class TestMainCli:
 
 
 class TestRockCommands:
-    def test_rock_no_args_shows_help(self, mock_repo):
+    def test_rock_no_args_shows_help(self):
         """rock (no args) shows help."""
         result = runner.invoke(main, ["rock"])
         # typer returns exit code 2 for no_args_is_help
         assert result.exit_code == 2
         assert "Usage" in result.output
 
-    def test_rock_list(self, mock_repo):
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_list(self, mock_repo_cls):
         """rock list shows available rocks."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["rock", "list"])
         assert result.exit_code == 0
         assert "cinder-consolidated" in result.output
 
-    def test_rock_list_with_release(self, mock_repo):
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_list_with_release(self, mock_repo_cls):
         """rock list --release accepts release option."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["rock", "list", "--release", "caracal"])
         assert result.exit_code == 0
 
-    def test_rock_show(self, mock_repo):
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_show(self, mock_repo_cls):
         """rock show displays rock info."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["rock", "show", "cinder-consolidated"])
         assert result.exit_code == 0
         assert "CloudPackageRepository" in result.output
 
-    def test_rock_show_nonexistent(self, mock_repo):
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_show_nonexistent(self, mock_repo_cls):
         """rock show with invalid rock name returns error."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["rock", "show", "nonexistent-rock"])
         assert result.exit_code == 1
         assert "no rock found" in result.output.lower()
 
-    def test_rock_patch(self, mock_repo):
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_patch(self, mock_repo_cls):
         """rock patch outputs YAML to stdout."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["rock", "patch", "cinder-consolidated"])
         assert result.exit_code == 0
         assert "cinder-api" in result.output
 
-    def test_rock_patch_with_ppa(self, mock_repo):
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_patch_with_ppa(self, mock_repo_cls):
         """rock patch --ppa adds PPA to output."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(
-            main, ["rock", "patch", "cinder-consolidated", "--ppa", "ppa:foo/bar"]
+            main,
+            ["rock", "patch", "cinder-consolidated", "--ppa", "ppa:foo/bar"],
         )
         assert result.exit_code == 0
         assert "foo/bar" in result.output
 
-    def test_rock_build(self, mock_repo, mock_do_build):
+    @patch("heliostat.cli.rock.do_build")
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_build(self, mock_repo_cls, mock_do_build):
         """rock build invokes do_build."""
-        result = runner.invoke(main, ["rock", "build", "--rock", "cinder-consolidated"])
+        mock_repo_cls.ensure.return_value = make_mock_repo()
+        result = runner.invoke(
+            main, ["rock", "build", "--rock", "cinder-consolidated"]
+        )
         assert result.exit_code == 0
         mock_do_build.assert_called_once()
 
@@ -223,20 +209,24 @@ class TestRockCommands:
 
 
 class TestPackageCommands:
-    def test_package_no_args_shows_error(self):
-        """package (no args) shows missing command error."""
+    def test_package_no_args_shows_help(self):
+        """package (no args) shows help."""
         result = runner.invoke(main, ["package"])
         assert result.exit_code == 2
-        assert "Missing command" in result.output
+        assert "Usage" in result.output
 
+    @patch("heliostat.cli.package.package_list")
     def test_package_show(self, mock_package_list):
         """package show displays binary packages."""
+        mock_package_list.return_value = CINDER_BINARY_PACKAGES
         result = runner.invoke(main, ["package", "show", "cinder"])
         assert result.exit_code == 0
         assert "cinder-api" in result.output
 
-    def test_package_rocks(self, mock_package_repo):
+    @patch("heliostat.cli.package.SunbeamRockRepo")
+    def test_package_rocks(self, mock_repo_cls):
         """package rocks lists rocks containing packages."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["package", "rocks", "cinder"])
         assert result.exit_code == 0
         assert "cinder-consolidated" in result.output

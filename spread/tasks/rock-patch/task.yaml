@@ -1,0 +1,5 @@
+summary: rock patch outputs valid YAML with the correct rock name
+
+execute: |
+  cd "$SPREAD_PATH"
+  uv run heliostat rock patch cinder-consolidated | yq '.name' | MATCH "cinder-consolidated"

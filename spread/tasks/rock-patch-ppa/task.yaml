@@ -1,0 +1,7 @@
+summary: rock patch --ppa adds PPA entry to package-repositories
+
+execute: |
+  cd "$SPREAD_PATH"
+  uv run heliostat rock patch cinder-consolidated --ppa ppa:foo/bar \
+    | yq '.["package-repositories"][] | select(.ppa == "foo/bar") | .ppa' \
+    | MATCH "foo/bar"

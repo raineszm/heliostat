@@ -1,0 +1,18 @@
+project: heliostat
+
+path: /root/heliostat
+
+backends:
+  lxd:
+    type: lxd
+    systems:
+      - ubuntu-24.04
+
+suites:
+  spread/tasks/:
+    summary: Functional tests for heliostat CLI commands
+
+prepare: |
+  snap install astral-uv --classic
+  snap install yq
+  snap install rockcraft --classic

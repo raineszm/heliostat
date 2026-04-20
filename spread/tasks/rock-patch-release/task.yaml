@@ -1,0 +1,7 @@
+summary: rock patch --release sets the cloud repo to the given release
+
+execute: |
+  cd "$SPREAD_PATH"
+  uv run heliostat rock patch cinder-consolidated --release antelope \
+    | yq '.["package-repositories"][] | select(.cloud == "antelope") | .cloud' \
+    | MATCH "antelope"

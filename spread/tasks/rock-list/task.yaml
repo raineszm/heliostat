@@ -1,0 +1,5 @@
+summary: rock list returns a non-empty list of rocks including cinder-consolidated
+
+execute: |
+  cd "$SPREAD_PATH"
+  uv run heliostat rock list | MATCH "cinder-consolidated"

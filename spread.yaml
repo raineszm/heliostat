@@ -8,11 +8,44 @@ backends:
     systems:
       - ubuntu-24.04
 
+  lxd-vm:
+    type: adhoc
+    allocate: |
+      name=$(echo "$SPREAD_SYSTEM" | tr '[:punct:]' -)
+      system=$(echo "$SPREAD_SYSTEM" | tr / -)
+      if [[ "$system" =~ ^ubuntu- ]]; then
+        image="ubuntu:${system#ubuntu-}"
+      else
+        image="images:$(echo "$system" | tr - /)"
+      fi
+      VM_NAME="spread-${name}-${RANDOM}"
+      lxc launch --vm "${image}" "${VM_NAME}" \
+        -c limits.cpu=4 \
+        -c limits.memory=8GiB \
+        -d root,size=20GiB
+      while ! lxc exec "${VM_NAME}" -- true &>/dev/null; do sleep 0.5; done
+      lxc exec "${VM_NAME}" -- sed -i 's/^\s*#\?\s*\(PermitRootLogin\|PasswordAuthentication\)\>.*/\1 yes/' /etc/ssh/sshd_config
+      lxc exec "${VM_NAME}" -- bash -c "if [ -d /etc/ssh/sshd_config.d ]; then echo -e 'PermitRootLogin yes\nPasswordAuthentication yes' > /etc/ssh/sshd_config.d/00-spread.conf; fi"
+      lxc exec "$VM_NAME" -- cloud-init status --wait 2>/dev/null || true
+      lxc exec "${VM_NAME}" -- /bin/bash -c "echo ubuntu:${SPREAD_PASSWORD} | chpasswd"
+      ADDR=""
+      while [ -z "$ADDR" ]; do ADDR=$(lxc ls -f csv | grep "^${VM_NAME}" | cut -d"," -f3 | cut -d" " -f1); done
+      ADDRESS "$ADDR"
+    discard: |
+      VM_NAME=$(lxc list --format yaml | yq '.[] | select(
+        [.state.network.enp5s0?.addresses[] | select(.family == "inet") | .address == strenv(SPREAD_SYSTEM_ADDRESS)] | any
+      ) | .name')
+      lxc delete --force "$VM_NAME"
+    systems:
+      - ubuntu-24.04:
+          username: ubuntu
+
 suites:
   spread/tasks/:
     summary: Functional tests for heliostat CLI commands
 
 prepare: |
+  apt-get install -y snapd
   snap install astral-uv --classic
   snap install yq
   snap install rockcraft --classic

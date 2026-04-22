@@ -1,0 +1,73 @@
+summary: charm attach injects rock into ctr and updates juju resource
+
+backends: [lxd-vm]
+
+kill-timeout: 60m
+
+prepare: |
+  snap list charmcraft &>/dev/null || snap install charmcraft --classic
+  snap list k8s &>/dev/null || snap install k8s --classic
+  snap list juju &>/dev/null || snap install juju
+
+  k8s status &>/dev/null || k8s bootstrap
+  k8s status --wait-ready --timeout 300s
+
+  CTR="sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io"
+  JUJU="sudo -u ubuntu -i juju"
+  CHARM_DIR=/home/ubuntu/minimal-charm
+  ROCK=/home/ubuntu/mock-rock_1.2_amd64.rock
+
+  $JUJU controllers 2>/dev/null | grep -q localhost-localhost || $JUJU bootstrap localhost
+  $JUJU clouds 2>/dev/null | grep -q local-k8s || k8s config | $JUJU add-k8s local-k8s --controller localhost-localhost
+  $JUJU models --controller localhost-localhost 2>/dev/null | grep -q openstack || $JUJU add-model openstack local-k8s
+
+  DEFAULT_IMAGE="ghcr.io/canonical/oci-factory/mock-rock:1.1-22.04_2649"
+  PATCH_IMAGE="ghcr.io/canonical/oci-factory/mock-rock:1.2-22.04_2650"
+  $CTR images pull "$DEFAULT_IMAGE"
+  rockcraft.skopeo --insecure-policy copy "docker://$PATCH_IMAGE" "oci-archive:$ROCK"
+
+  # Copy heliostat project and minimal charm to ubuntu's home
+  rm -rf "$CHARM_DIR" /home/ubuntu/heliostat
+  cp -r "$SPREAD_PATH" /home/ubuntu/heliostat
+  cp -r "$SPREAD_PATH/spread/tasks/charm-attach/minimal-charm" "$CHARM_DIR"
+  chown -R ubuntu:ubuntu /home/ubuntu/heliostat "$CHARM_DIR"
+
+  sudo -u ubuntu -i sh -c "cd $CHARM_DIR && charmcraft pack"
+  $JUJU status --model openstack 2>/dev/null | grep -q minimal-test || $JUJU deploy \
+    "$CHARM_DIR/minimal-test_amd64.charm" \
+    --resource test-image="$DEFAULT_IMAGE"
+  $JUJU wait-for application minimal-test
+
+restore: |
+  CTR="sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io"
+  JUJU="sudo -u ubuntu -i juju"
+  ROCK=/home/ubuntu/mock-rock_1.2_amd64.rock
+
+  $JUJU destroy-model openstack --no-prompt --force --destroy-storage 2>/dev/null || true
+
+  if [ -f "$ROCK" ]; then
+    DIGEST=$(tar -xOf "$ROCK" index.json | yq '.manifests[0].digest')
+    $CTR images rm "$DIGEST" 2>/dev/null || true
+  fi
+
+execute: |
+  CTR="sudo /snap/k8s/current/bin/ctr --address /run/containerd/containerd.sock --namespace k8s.io"
+  JUJU="sudo -u ubuntu -i juju"
+  ROCK=/home/ubuntu/mock-rock_1.2_amd64.rock
+
+  sudo -u ubuntu -i sh -c "cd ~/heliostat && uv run heliostat charm attach minimal-test $ROCK test-image"
+
+  # Extract digest from exported OCI tarball
+  DIGEST=$(sudo -u ubuntu -i sh -c "tar -xOf $ROCK index.json | yq '.manifests[0].digest'")
+
+  # Verify image landed in containerd
+  $CTR images ls -q | MATCH "$DIGEST"
+
+  sleep 5
+
+  $JUJU wait-for unit minimal-test/0
+
+  # Verify juju resource updated
+  sudo k8s kubectl -n openstack get pod minimal-test-0 -o yaml | \
+    yq -r '.status.containerStatuses[]|select(.name == "test-container").imageID' | \
+    MATCH "$DIGEST"

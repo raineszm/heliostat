@@ -1,0 +1,25 @@
+type: charm
+name: minimal-test
+summary: Minimal test charm
+description: Minimal charm for heliostat spread tests
+base: ubuntu@24.04
+platforms:
+  amd64:
+assumes:
+  - juju >= 3.6
+  - k8s-api
+
+containers:
+  test-container:
+    resource: test-image
+
+resources:
+  test-image:
+    type: oci-image
+    description: Test OCI image resource
+parts:
+  charm:
+    plugin: uv
+    source: .
+    build-snaps:
+      - astral-uv

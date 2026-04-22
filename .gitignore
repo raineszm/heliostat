@@ -178,3 +178,5 @@ pyrightconfig.json
 tmp/
 .zed
 *.rock
+
+.spread-reuse.*

@@ -232,7 +232,12 @@ class TestPackageCommands:
     @patch("heliostat.cli.package.SunbeamRockRepo")
     def test_package_rocks(self, mock_repo_cls):
         """package rocks lists rocks containing packages."""
-        mock_repo_cls.ensure.return_value = make_mock_repo()
+        repo = MagicMock()
+        rock = MagicMock()
+        rock.name = "cinder-consolidated"
+        repo.rocks_for_packages.return_value = [rock]
+        mock_repo_cls.ensure.return_value = repo
         result = runner.invoke(main, ["package", "rocks", "cinder"])
         assert result.exit_code == 0
         assert "cinder-consolidated" in result.output
+        repo.rocks_for_packages.assert_called_once()

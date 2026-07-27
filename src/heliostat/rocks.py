@@ -79,37 +79,36 @@ class SetVersionString(Patch):
 
 
 @dataclass
-class RockPatchOptions:
+class RockPatcher:
     ppa: str | None
     release: Release | None
     series: Series
     suffix: str | None = None
     workarounds: list[Patch] | None = None
 
-
-class RockPatcher:
-    def patch(
-        self, rock: RockcraftFile, options: RockPatchOptions
-    ) -> RockcraftFile:
+    def build_patches(self) -> list[Patch]:
         patches: list[Patch] = []
 
-        if options.release:
+        if self.release:
             patches.append(
-                SetUcaRelease(release=options.release, series=options.series)
+                SetUcaRelease(release=self.release, series=self.series)
             )
 
-        if options.ppa:
-            patches.append(AddPpa(ppa=options.ppa))
+        if self.ppa:
+            patches.append(AddPpa(ppa=self.ppa))
 
-        patches.append(SetBase(series_or_base=options.series))
+        patches.append(SetBase(series_or_base=self.series))
 
-        if options.suffix:
-            patches.append(SetVersionString(suffix=options.suffix))
+        if self.suffix:
+            patches.append(SetVersionString(suffix=self.suffix))
 
-        if options.workarounds:
-            patches.extend(options.workarounds)
+        if self.workarounds:
+            patches.extend(self.workarounds)
 
-        return rock.patch(patches)
+        return patches
+
+    def patch(self, rock: RockcraftFile) -> RockcraftFile:
+        return rock.patch(self.build_patches())
 
 
 Priority = Literal["always", "prefer", "defer"] | int

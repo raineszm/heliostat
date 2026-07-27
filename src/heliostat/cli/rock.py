@@ -11,12 +11,7 @@ import typer
 from ruamel.yaml import YAML
 
 from heliostat.cli._bins import check_bins
-from heliostat.rocks import (
-    RockPatchOptions,
-    RockPatcher,
-    RockcraftFile,
-    SunbeamRockRepo,
-)
+from heliostat.rocks import RockPatcher, RockcraftFile, SunbeamRockRepo
 from heliostat.types import Release, Series
 from heliostat.workarounds import Workaround, get_workarounds
 
@@ -112,17 +107,14 @@ def patch(
         workarounds = get_workarounds(rock, release, series)
     else:
         workarounds = []
-    patcher = RockPatcher()
-    rockcraft = patcher.patch(
-        rock.rockcraft_yaml(),
-        RockPatchOptions(
-            ppa=ppa,
-            release=release,
-            series=series,
-            suffix=suffix,
-            workarounds=workarounds,
-        ),
+    patcher = RockPatcher(
+        ppa=ppa,
+        release=release,
+        series=series,
+        suffix=suffix,
+        workarounds=workarounds,
     )
+    rockcraft = patcher.patch(rock.rockcraft_yaml())
 
     yaml = YAML()
     if output is None:
@@ -200,17 +192,14 @@ def build(
             workarounds = get_workarounds(rock, release, series)
         else:
             workarounds = []
-        patcher = RockPatcher()
-        rockcraft = patcher.patch(
-            rock.rockcraft_yaml(),
-            RockPatchOptions(
-                ppa=ppa,
-                release=release,
-                series=series,
-                suffix=suffix,
-                workarounds=workarounds,
-            ),
+        patcher = RockPatcher(
+            ppa=ppa,
+            release=release,
+            series=series,
+            suffix=suffix,
+            workarounds=workarounds,
         )
+        rockcraft = patcher.patch(rock.rockcraft_yaml())
 
         do_build(rock.name, rockcraft, output_dir, workarounds=workarounds)
 

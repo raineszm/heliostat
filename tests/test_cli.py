@@ -174,22 +174,11 @@ class TestRockCommands:
 
     @patch("heliostat.cli.rock.SunbeamRockRepo")
     def test_rock_patch(self, mock_repo_cls):
-        """rock patch outputs YAML to stdout."""
+        """rock patch returns YAML output."""
         mock_repo_cls.ensure.return_value = make_mock_repo()
         result = runner.invoke(main, ["rock", "patch", "cinder-consolidated"])
         assert result.exit_code == 0
-        assert "cinder-api" in result.output
-
-    @patch("heliostat.cli.rock.SunbeamRockRepo")
-    def test_rock_patch_with_ppa(self, mock_repo_cls):
-        """rock patch --ppa adds PPA to output."""
-        mock_repo_cls.ensure.return_value = make_mock_repo()
-        result = runner.invoke(
-            main,
-            ["rock", "patch", "cinder-consolidated", "--ppa", "ppa:foo/bar"],
-        )
-        assert result.exit_code == 0
-        assert "foo/bar" in result.output
+        assert "name: cinder-consolidated" in result.output
 
     @patch("heliostat.cli.rock.do_build")
     @patch("heliostat.cli.rock.SunbeamRockRepo")

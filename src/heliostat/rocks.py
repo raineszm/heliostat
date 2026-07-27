@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import itertools
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Protocol, Self
@@ -84,9 +84,13 @@ class RockPatcher:
     release: Release | None
     series: Series
     suffix: str | None = None
-    workarounds: list[Patch] | None = None
+    workarounds: Sequence[Patch] | None = None
 
     def build_patches(self) -> list[Patch]:
+        # Order is significant: release repo must precede PPA so that the
+        # PPA entry is appended after the cloud archive entry; base and
+        # version are independent but kept last for readability; workarounds
+        # are applied after all standard patches.
         patches: list[Patch] = []
 
         if self.release:

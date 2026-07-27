@@ -1,12 +1,18 @@
 import gzip
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Protocol
 
 import requests
 from debian import deb822
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from heliostat.types import Pocket, Release, Series
 
 UCA_BASE_URL = "https://ubuntu-cloud.archive.canonical.com/ubuntu/dists/"
+REQUEST_TIMEOUT = 10
+REQUEST_RETRIES = 3
 
 
 def uca_sources_url(
@@ -15,41 +21,111 @@ def uca_sources_url(
     return f"{UCA_BASE_URL}{series}-{pocket}/{release}/main/source/Sources.gz"
 
 
-def uca_packages(sources: set[str], series: Series, release: Release):
-    url = uca_sources_url(series, release)
-    response = requests.get(url)
-    response.raise_for_status()
-
-    data = gzip.decompress(response.content).decode("utf-8")
-
-    for source_pkg in deb822.Sources.iter_paragraphs(data, use_apt_pkg=False):
-        if source_pkg["Package"] in sources:
-            yield from (pkg["package"] for pkg in source_pkg["Package-List"])
-
-
 def rmadison_url(source: str, series: Series):
     return f"https://ubuntu-archive-team.ubuntu.com/madison.cgi?package={source}&a=&c=&s={series}&S=on&text=on"
 
 
-def madison_packages(
-    source: str, series: Series = Series.default()
-) -> Iterable[str]:
-    url = rmadison_url(source, series)
-    response = requests.get(url)
-    response.raise_for_status()
-    for line in response.text.splitlines():
-        if not line.endswith("source"):
-            yield line.split("|")[0].strip()
+def build_retrying_session() -> requests.Session:
+    retry = Retry(total=REQUEST_RETRIES, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session = requests.Session()
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
-def package_list(
-    src_packages: list[str],
+class PackageResolver(Protocol):
+    def binaries_for_source(
+        self,
+        src_packages: Sequence[str],
+        *,
+        series: Series,
+        release: Release,
+    ) -> Iterable[str]: ...
+
+
+class NetworkPackageResolver:
+    def __init__(
+        self,
+        session: requests.Session | None = None,
+        timeout: float = REQUEST_TIMEOUT,
+    ):
+        self.session = session or build_retrying_session()
+        self.timeout = timeout
+
+    def binaries_for_source(
+        self,
+        src_packages: Sequence[str],
+        *,
+        series: Series,
+        release: Release,
+    ) -> Iterable[str]:
+        if release == series.default_release():
+            for src_package in src_packages:
+                yield from self._madison_packages(src_package, series)
+            return
+
+        yield from self._uca_packages(set(src_packages), series, release)
+
+    def _uca_packages(
+        self, sources: set[str], series: Series, release: Release
+    ) -> Iterable[str]:
+        response = self.session.get(
+            uca_sources_url(series, release), timeout=self.timeout
+        )
+        response.raise_for_status()
+        data = gzip.decompress(response.content).decode("utf-8")
+        for source_pkg in deb822.Sources.iter_paragraphs(
+            data, use_apt_pkg=False
+        ):
+            if source_pkg["Package"] in sources:
+                yield from (
+                    pkg["package"] for pkg in source_pkg["Package-List"]
+                )
+
+    def _madison_packages(
+        self, source: str, series: Series = Series.default()
+    ) -> Iterable[str]:
+        response = self.session.get(
+            rmadison_url(source, series), timeout=self.timeout
+        )
+        response.raise_for_status()
+        for line in response.text.splitlines():
+            if not line.endswith("source"):
+                yield line.split("|")[0].strip()
+
+
+@dataclass
+class StaticPackageResolver:
+    packages_by_source: Mapping[str, Sequence[str]]
+
+    def binaries_for_source(
+        self,
+        src_packages: Sequence[str],
+        *,
+        series: Series,
+        release: Release,
+    ) -> Iterable[str]:
+        del series, release
+        for src_package in src_packages:
+            yield from self.packages_by_source.get(src_package, ())
+
+
+DEFAULT_PACKAGE_RESOLVER = NetworkPackageResolver()
+
+
+def binaries_for_source(
+    src_packages: Sequence[str],
+    *,
     series: Series,
     release: Release,
+    resolver: PackageResolver | None = None,
 ) -> Iterable[str]:
-    if release == series.default_release():
-        for src_package in src_packages:
-            yield from madison_packages(src_package, series)
-        return
-
-    yield from uca_packages(set(src_packages), series, release)
+    active_resolver = (
+        resolver if resolver is not None else DEFAULT_PACKAGE_RESOLVER
+    )
+    yield from active_resolver.binaries_for_source(
+        src_packages,
+        series=series,
+        release=release,
+    )

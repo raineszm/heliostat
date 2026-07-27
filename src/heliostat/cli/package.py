@@ -3,7 +3,7 @@ import shutil
 import typer
 
 from heliostat.cli._bins import check_bins
-from heliostat.component import package_list
+from heliostat.component import binaries_for_source
 from heliostat.rocks import SunbeamRockRepo
 from heliostat.types import Release, Series
 
@@ -17,7 +17,9 @@ def show(
     release: Release = Release.default(),
 ):
     """List all binary packages built from this source package."""
-    for binpkg in package_list([source], series=series, release=release):
+    for binpkg in binaries_for_source(
+        [source], series=series, release=release
+    ):
         typer.echo(binpkg)
 
 

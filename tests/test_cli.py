@@ -221,10 +221,10 @@ class TestPackageCommands:
         assert result.exit_code == 2
         assert "Usage" in result.output
 
-    @patch("heliostat.cli.package.package_list")
-    def test_package_show(self, mock_package_list):
+    @patch("heliostat.cli.package.binaries_for_source")
+    def test_package_show(self, mock_binaries_for_source):
         """package show displays binary packages."""
-        mock_package_list.return_value = CINDER_BINARY_PACKAGES
+        mock_binaries_for_source.return_value = CINDER_BINARY_PACKAGES
         result = runner.invoke(main, ["package", "show", "cinder"])
         assert result.exit_code == 0
         assert "cinder-api" in result.output

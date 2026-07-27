@@ -3,12 +3,13 @@ import gzip
 
 import pytest
 import responses
+import heliostat.component as component_module
 
 from heliostat.component import (
-    madison_packages,
-    package_list,
+    NetworkPackageResolver,
+    StaticPackageResolver,
+    binaries_for_source,
     rmadison_url,
-    uca_packages,
     uca_sources_url,
 )
 from heliostat.types import Release, Series
@@ -98,30 +99,81 @@ def stub_cinder_responses(func):
     return wrapper
 
 
-class TestUcaPackages:
+class TestNetworkPackageResolver:
     @stub_cinder_responses
-    def test_yields_binary_packages_for_requested_source(self):
-        result = list(uca_packages({"cinder"}, Series.NOBLE, Release.ANTELOPE))
+    def test_yields_uca_binary_packages_for_requested_source(self):
+        resolver = NetworkPackageResolver()
+        result = list(
+            resolver.binaries_for_source(
+                ["cinder"],
+                series=Series.NOBLE,
+                release=Release.ANTELOPE,
+            )
+        )
         assert set(result) == _CINDER_BINARY_PACKAGES
 
     @stub_cinder_responses
     def test_ignores_unrequested_source_package(self):
-        result = list(uca_packages({"nova"}, Series.NOBLE, Release.ANTELOPE))
+        resolver = NetworkPackageResolver()
+        result = list(
+            resolver.binaries_for_source(
+                ["nova"],
+                series=Series.NOBLE,
+                release=Release.ANTELOPE,
+            )
+        )
         assert result == []
 
 
-class TestMadisonPackages:
-    @stub_cinder_responses
-    def test_yields_binary_packages(self):
-        result = list(madison_packages("cinder", Series.NOBLE))
-        assert set(result) == _CINDER_BINARY_PACKAGES
-
-
-class TestPackageList:
+class TestBinariesForSource:
     @pytest.mark.parametrize("release", [Release.CARACAL, Release.ANTELOPE])
     @stub_cinder_responses
     def test_returns_binary_packages(self, release):
         result = list(
-            package_list(["cinder"], series=Series.NOBLE, release=release)
+            binaries_for_source(
+                ["cinder"],
+                series=Series.NOBLE,
+                release=release,
+            )
         )
         assert set(result) == _CINDER_BINARY_PACKAGES
+
+    def test_allows_static_test_adapter(self):
+        resolver = StaticPackageResolver(
+            {"cinder": ["cinder-api", "cinder-volume"]}
+        )
+        result = list(
+            binaries_for_source(
+                ["cinder"],
+                series=Series.NOBLE,
+                release=Release.ANTELOPE,
+                resolver=resolver,
+            )
+        )
+        assert result == ["cinder-api", "cinder-volume"]
+
+    def test_uses_explicit_falsey_resolver(self, monkeypatch):
+        class FalseyResolver:
+            def __bool__(self):
+                return False
+
+            def binaries_for_source(self, src_packages, *, series, release):
+                del src_packages, series, release
+                return ["from-falsey"]
+
+        monkeypatch.setattr(
+            component_module,
+            "DEFAULT_PACKAGE_RESOLVER",
+            StaticPackageResolver({"cinder": ["from-default"]}),
+        )
+
+        result = list(
+            binaries_for_source(
+                ["cinder"],
+                series=Series.NOBLE,
+                release=Release.ANTELOPE,
+                resolver=FalseyResolver(),
+            )
+        )
+
+        assert result == ["from-falsey"]

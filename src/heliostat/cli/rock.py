@@ -11,14 +11,7 @@ import typer
 from ruamel.yaml import YAML
 
 from heliostat.cli._bins import check_bins
-from heliostat.rocks import (
-    AddPpa,
-    RockcraftFile,
-    SetBase,
-    SetUcaRelease,
-    SetVersionString,
-    SunbeamRockRepo,
-)
+from heliostat.rocks import RockPatcher, RockcraftFile, SunbeamRockRepo
 from heliostat.types import Release, Series
 from heliostat.workarounds import Workaround, get_workarounds
 
@@ -114,14 +107,14 @@ def patch(
         workarounds = get_workarounds(rock, release, series)
     else:
         workarounds = []
-    rockcraft = _get_patched(
-        rock.rockcraft_yaml(),
+    patcher = RockPatcher(
         ppa=ppa,
         release=release,
         series=series,
-        version_suffix=suffix,
+        suffix=suffix,
         workarounds=workarounds,
     )
+    rockcraft = patcher.patch(rock.rockcraft_yaml())
 
     yaml = YAML()
     if output is None:
@@ -199,14 +192,14 @@ def build(
             workarounds = get_workarounds(rock, release, series)
         else:
             workarounds = []
-        rockcraft = _get_patched(
-            rock.rockcraft_yaml(),
+        patcher = RockPatcher(
             ppa=ppa,
             release=release,
             series=series,
-            version_suffix=suffix,
+            suffix=suffix,
             workarounds=workarounds,
         )
+        rockcraft = patcher.patch(rock.rockcraft_yaml())
 
         do_build(rock.name, rockcraft, output_dir, workarounds=workarounds)
 
@@ -230,37 +223,6 @@ def do_build(
             raise typer.Exit(1)
         for file in build_dir.glob("*.rock"):
             shutil.copy(build_dir / file, output_dir)
-
-
-def _get_patched(
-    rock: RockcraftFile,
-    ppa: str | None,
-    release: Release | None,
-    series: Series,
-    version_suffix: str | None = None,
-    workarounds: list[Workaround] | None = None,
-) -> RockcraftFile:
-    patches = []
-
-    # NOTE(zmraines): The order that patches are added is significant.
-    # It might be good in the future to think about how to make the order
-    # more explicit.
-
-    if release:
-        patches.append(SetUcaRelease(release=release, series=series))
-
-    if ppa:
-        patches.append(AddPpa(ppa=ppa))
-
-    patches.append(SetBase(series_or_base=series))
-
-    if version_suffix:
-        patches.append(SetVersionString(suffix=version_suffix))
-
-    if workarounds:
-        patches.extend(workarounds)
-
-    return rock.patch(patches)
 
 
 @rock_app.callback(no_args_is_help=True)

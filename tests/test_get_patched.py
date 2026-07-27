@@ -1,10 +1,12 @@
 import copy
 
-from heliostat.cli.rock import _get_patched
 from heliostat.rocks import (
-    CloudPackageRepository,
-    PpaPackageRepository,
+    AddPpa,
+    RockPatcher,
     RockcraftFile,
+    SetBase,
+    SetUcaRelease,
+    SetVersionString,
 )
 from heliostat.types import Release, Series
 
@@ -23,64 +25,97 @@ def _rock() -> RockcraftFile:
     return RockcraftFile(copy.deepcopy(_BASE_YAML))
 
 
-class TestGetPatched:
-    def test_sets_base_from_series(self):
-        result = _get_patched(
-            _rock(), ppa=None, release=Release.EPOXY, series=Series.NOBLE
-        )
-        assert result.yaml["base"] == "ubuntu@24.04"
+class TestRockPatcherBuildPatches:
+    def _build_patches(
+        self,
+        *,
+        ppa: str | None = None,
+        release: Release | None = Release.EPOXY,
+        series: Series = Series.NOBLE,
+        suffix: str | None = None,
+        workarounds=None,
+    ) -> list:
+        return RockPatcher(
+            ppa=ppa,
+            release=release,
+            series=series,
+            suffix=suffix,
+            workarounds=workarounds,
+        ).build_patches()
 
-    def test_ppa_added_when_specified(self):
-        result = _get_patched(
-            _rock(), ppa="foo/bar", release=Release.EPOXY, series=Series.NOBLE
-        )
-        repos = list(result.repositories())
-        ppa_repos = [r for r in repos if isinstance(r, PpaPackageRepository)]
-        assert len(ppa_repos) == 1
-        assert ppa_repos[0].ppa == "foo/bar"
-
-    def test_no_ppa_entry_when_not_specified(self):
-        result = _get_patched(
-            _rock(), ppa=None, release=Release.EPOXY, series=Series.NOBLE
-        )
-        repos = list(result.repositories())
-        assert not any(isinstance(r, PpaPackageRepository) for r in repos)
-
-    def test_version_suffix_appended(self):
-        result = _get_patched(
-            _rock(),
-            ppa=None,
-            release=Release.EPOXY,
-            series=Series.NOBLE,
-            version_suffix="heliostat",
-        )
-        assert result.yaml["version"] == "2024.1-heliostat"
-
-    def test_cloud_repo_appears_before_ppa(self):
-        # release patch runs before ppa patch — cloud repo must be index 0
-        result = _get_patched(
-            _rock(),
+    def test_order_release_then_ppa_then_base_then_suffix(self):
+        patches = self._build_patches(
             ppa="foo/bar",
             release=Release.ANTELOPE,
             series=Series.NOBLE,
+            suffix="heliostat",
         )
-        repos = list(result.repositories())
-        assert isinstance(repos[0], CloudPackageRepository)
-        assert isinstance(repos[1], PpaPackageRepository)
+        assert isinstance(patches[0], SetUcaRelease)
+        assert isinstance(patches[1], AddPpa)
+        assert isinstance(patches[2], SetBase)
+        assert isinstance(patches[3], SetVersionString)
 
-    def test_release_updates_cloud_repo_value(self):
-        result = _get_patched(
-            _rock(), ppa=None, release=Release.ANTELOPE, series=Series.NOBLE
+    def test_no_ppa_patch_when_not_specified(self):
+        patches = self._build_patches(
+            ppa=None,
+            release=Release.EPOXY,
+            series=Series.NOBLE,
         )
-        repos = list(result.repositories())
-        assert repos[0].cloud == "antelope"
+        assert not any(isinstance(patch, AddPpa) for patch in patches)
+
+    def test_no_release_patch_when_not_specified(self):
+        patches = self._build_patches(
+            ppa=None,
+            release=None,
+            series=Series.NOBLE,
+        )
+        assert not any(isinstance(patch, SetUcaRelease) for patch in patches)
 
     def test_workarounds_appended_last(self):
         from heliostat.workarounds.wsgi import WSGIShim
 
         shim = WSGIShim(module="nova.wsgi", script_name="nova-api")
-        result = _get_patched(
-            _rock(),
+        patches = self._build_patches(
+            ppa=None,
+            release=Release.EPOXY,
+            series=Series.NOBLE,
+            workarounds=[shim],
+        )
+        assert patches[-1] is shim
+
+
+class TestRockPatcherPatch:
+    def _patch(
+        self,
+        *,
+        ppa: str | None = None,
+        release: Release | None = Release.EPOXY,
+        series: Series = Series.NOBLE,
+        suffix: str | None = None,
+        workarounds=None,
+    ) -> RockcraftFile:
+        return RockPatcher(
+            ppa=ppa,
+            release=release,
+            series=series,
+            suffix=suffix,
+            workarounds=workarounds,
+        ).patch(_rock())
+
+    def test_release_updates_cloud_repo_value(self):
+        result = self._patch(
+            ppa=None,
+            release=Release.ANTELOPE,
+            series=Series.NOBLE,
+        )
+        repos = list(result.repositories())
+        assert repos[0].cloud == "antelope"
+
+    def test_workaround_patch_is_applied(self):
+        from heliostat.workarounds.wsgi import WSGIShim
+
+        shim = WSGIShim(module="nova.wsgi", script_name="nova-api")
+        result = self._patch(
             ppa=None,
             release=Release.EPOXY,
             series=Series.NOBLE,

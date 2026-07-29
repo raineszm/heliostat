@@ -1,5 +1,5 @@
 import gzip
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from typing import Protocol
 
 import requests
@@ -41,7 +41,7 @@ def build_retrying_session() -> requests.Session:
 class PackageResolver(Protocol):
     def binaries_for_source(
         self,
-        src_packages: Sequence[str],
+        src_packages: set[str],
         *,
         series: Series,
         release: Release,
@@ -59,20 +59,21 @@ class NetworkPackageResolver:
 
     def binaries_for_source(
         self,
-        src_packages: Sequence[str],
+        src_packages: set[str],
         *,
         series: Series,
         release: Release,
     ) -> Iterable[str]:
+
         if release == series.default_release():
-            for src_package in src_packages:
-                yield from self._madison_packages(src_package, series)
+            for source in src_packages:
+                yield from self._madison_packages(source, series)
             return
 
-        yield from self._uca_packages(set(src_packages), series, release)
+        yield from self._uca_packages(src_packages, series, release)
 
     def _uca_packages(
-        self, sources: set[str], series: Series, release: Release
+        self, src_packages: set[str], series: Series, release: Release
     ) -> Iterable[str]:
         response = self.session.get(
             uca_sources_url(series, release), timeout=self.timeout
@@ -82,7 +83,7 @@ class NetworkPackageResolver:
         for source_pkg in deb822.Sources.iter_paragraphs(
             data, use_apt_pkg=False
         ):
-            if source_pkg["Package"] in sources:
+            if source_pkg["Package"] in src_packages:
                 yield from (
                     pkg["package"] for pkg in source_pkg["Package-List"]
                 )

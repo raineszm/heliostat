@@ -21,7 +21,7 @@ def show(
     resolver = NetworkPackageResolver()
 
     for binpkg in resolver.binaries_for_source(
-        [source], series=series, release=release
+        {source}, series=series, release=release
     ):
         typer.echo(binpkg)
 

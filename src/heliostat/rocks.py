@@ -279,7 +279,7 @@ class SunbeamRockRepo:
     ) -> Iterable[SunbeamRock]:
         binpkgs = set(
             resolver.binaries_for_source(
-                list(sources),
+                set(sources),
                 series=series,
                 release=release,
             )

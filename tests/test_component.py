@@ -1,5 +1,6 @@
 import functools
 import gzip
+from unittest.mock import MagicMock
 
 import responses
 
@@ -101,7 +102,7 @@ class TestNetworkPackageResolver:
         resolver = NetworkPackageResolver()
         result = list(
             resolver.binaries_for_source(
-                ["cinder"],
+                {"cinder"},
                 series=Series.NOBLE,
                 release=Release.ANTELOPE,
             )
@@ -113,9 +114,26 @@ class TestNetworkPackageResolver:
         resolver = NetworkPackageResolver()
         result = list(
             resolver.binaries_for_source(
-                ["nova"],
+                {"nova"},
                 series=Series.NOBLE,
                 release=Release.ANTELOPE,
             )
         )
         assert result == []
+
+    def test_queries_each_source_for_default_release(self):
+        resolver = NetworkPackageResolver()
+        resolver._madison_packages = MagicMock(return_value=())
+
+        result = list(
+            resolver.binaries_for_source(
+                {"cinder"},
+                series=Series.NOBLE,
+                release=Series.NOBLE.default_release(),
+            )
+        )
+
+        assert result == []
+        resolver._madison_packages.assert_called_once_with(
+            "cinder", Series.NOBLE
+        )

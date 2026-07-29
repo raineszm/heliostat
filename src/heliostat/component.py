@@ -26,7 +26,12 @@ def rmadison_url(source: str, series: Series):
 
 
 def build_retrying_session() -> requests.Session:
-    retry = Retry(total=REQUEST_RETRIES, backoff_factor=0.5)
+    retry = Retry(
+        total=REQUEST_RETRIES,
+        backoff_factor=0.5,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset({"GET"}),
+    )
     adapter = HTTPAdapter(max_retries=retry)
     session = requests.Session()
     session.mount("http://", adapter)
@@ -50,7 +55,9 @@ class NetworkPackageResolver:
         session: requests.Session | None = None,
         timeout: float = REQUEST_TIMEOUT,
     ):
-        self.session = session or build_retrying_session()
+        self.session = (
+            build_retrying_session() if session is None else session
+        )
         self.timeout = timeout
 
     def binaries_for_source(

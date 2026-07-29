@@ -180,3 +180,4 @@ tmp/
 *.rock
 
 .spread-reuse.*
+.workshop.lock

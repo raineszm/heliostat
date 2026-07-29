@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from heliostat.cli import main
 from heliostat.rocks import RockcraftFile, SunbeamRock
+from tests.fakes import FakePackageResolver
 
 runner = CliRunner()
 
@@ -221,18 +222,26 @@ class TestPackageCommands:
         assert result.exit_code == 2
         assert "Usage" in result.output
 
-    @patch("heliostat.cli.package.package_list")
-    def test_package_show(self, mock_package_list):
+    def test_package_show(self):
         """package show displays binary packages."""
-        mock_package_list.return_value = CINDER_BINARY_PACKAGES
-        result = runner.invoke(main, ["package", "show", "cinder"])
+        resolver = FakePackageResolver({"cinder": CINDER_BINARY_PACKAGES})
+        with patch(
+            "heliostat.cli.package.NetworkPackageResolver",
+            return_value=resolver,
+        ):
+            result = runner.invoke(main, ["package", "show", "cinder"])
         assert result.exit_code == 0
         assert "cinder-api" in result.output
 
     @patch("heliostat.cli.package.SunbeamRockRepo")
     def test_package_rocks(self, mock_repo_cls):
         """package rocks lists rocks containing packages."""
-        mock_repo_cls.ensure.return_value = make_mock_repo()
+        repo = MagicMock()
+        rock = MagicMock()
+        rock.name = "cinder-consolidated"
+        repo.rocks_for_packages.return_value = [rock]
+        mock_repo_cls.ensure.return_value = repo
         result = runner.invoke(main, ["package", "rocks", "cinder"])
         assert result.exit_code == 0
         assert "cinder-consolidated" in result.output
+        repo.rocks_for_packages.assert_called_once()

@@ -1,14 +1,12 @@
 import functools
 import gzip
+from unittest.mock import MagicMock
 
-import pytest
 import responses
 
 from heliostat.component import (
-    madison_packages,
-    package_list,
+    NetworkPackageResolver,
     rmadison_url,
-    uca_packages,
     uca_sources_url,
 )
 from heliostat.types import Release, Series
@@ -98,30 +96,44 @@ def stub_cinder_responses(func):
     return wrapper
 
 
-class TestUcaPackages:
+class TestNetworkPackageResolver:
     @stub_cinder_responses
-    def test_yields_binary_packages_for_requested_source(self):
-        result = list(uca_packages({"cinder"}, Series.NOBLE, Release.ANTELOPE))
+    def test_yields_uca_binary_packages_for_requested_source(self):
+        resolver = NetworkPackageResolver()
+        result = list(
+            resolver.binaries_for_source(
+                {"cinder"},
+                series=Series.NOBLE,
+                release=Release.ANTELOPE,
+            )
+        )
         assert set(result) == _CINDER_BINARY_PACKAGES
 
     @stub_cinder_responses
     def test_ignores_unrequested_source_package(self):
-        result = list(uca_packages({"nova"}, Series.NOBLE, Release.ANTELOPE))
+        resolver = NetworkPackageResolver()
+        result = list(
+            resolver.binaries_for_source(
+                {"nova"},
+                series=Series.NOBLE,
+                release=Release.ANTELOPE,
+            )
+        )
         assert result == []
 
+    def test_queries_each_source_for_default_release(self):
+        resolver = NetworkPackageResolver()
+        resolver._madison_packages = MagicMock(return_value=())
 
-class TestMadisonPackages:
-    @stub_cinder_responses
-    def test_yields_binary_packages(self):
-        result = list(madison_packages("cinder", Series.NOBLE))
-        assert set(result) == _CINDER_BINARY_PACKAGES
-
-
-class TestPackageList:
-    @pytest.mark.parametrize("release", [Release.CARACAL, Release.ANTELOPE])
-    @stub_cinder_responses
-    def test_returns_binary_packages(self, release):
         result = list(
-            package_list(["cinder"], series=Series.NOBLE, release=release)
+            resolver.binaries_for_source(
+                {"cinder"},
+                series=Series.NOBLE,
+                release=Series.NOBLE.default_release(),
+            )
         )
-        assert set(result) == _CINDER_BINARY_PACKAGES
+
+        assert result == []
+        resolver._madison_packages.assert_called_once_with(
+            "cinder", Series.NOBLE
+        )

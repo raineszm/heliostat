@@ -10,7 +10,7 @@ from heliostat.rocks import (
 )
 from heliostat.types import Release, Series
 
-_BASE_YAML = {
+BASE_YAML = {
     "name": "test-rock",
     "base": "ubuntu@24.04",
     "version": "2024.1",
@@ -21,12 +21,12 @@ _BASE_YAML = {
 }
 
 
-def _rock() -> RockcraftFile:
-    return RockcraftFile(copy.deepcopy(_BASE_YAML))
+def rockcraft_file() -> RockcraftFile:
+    return RockcraftFile(copy.deepcopy(BASE_YAML))
 
 
 class TestRockPatcherBuildPatches:
-    def _build_patches(
+    def build_patches(
         self,
         *,
         ppa: str | None = None,
@@ -44,7 +44,7 @@ class TestRockPatcherBuildPatches:
         ).build_patches()
 
     def test_order_release_then_ppa_then_base_then_suffix(self):
-        patches = self._build_patches(
+        patches = self.build_patches(
             ppa="foo/bar",
             release=Release.ANTELOPE,
             series=Series.NOBLE,
@@ -56,7 +56,7 @@ class TestRockPatcherBuildPatches:
         assert isinstance(patches[3], SetVersionString)
 
     def test_no_ppa_patch_when_not_specified(self):
-        patches = self._build_patches(
+        patches = self.build_patches(
             ppa=None,
             release=Release.EPOXY,
             series=Series.NOBLE,
@@ -64,7 +64,7 @@ class TestRockPatcherBuildPatches:
         assert not any(isinstance(patch, AddPpa) for patch in patches)
 
     def test_no_release_patch_when_not_specified(self):
-        patches = self._build_patches(
+        patches = self.build_patches(
             ppa=None,
             release=None,
             series=Series.NOBLE,
@@ -75,7 +75,7 @@ class TestRockPatcherBuildPatches:
         from heliostat.workarounds.wsgi import WSGIShim
 
         shim = WSGIShim(module="nova.wsgi", script_name="nova-api")
-        patches = self._build_patches(
+        patches = self.build_patches(
             ppa=None,
             release=Release.EPOXY,
             series=Series.NOBLE,
@@ -85,7 +85,7 @@ class TestRockPatcherBuildPatches:
 
 
 class TestRockPatcherPatch:
-    def _patch(
+    def patch(
         self,
         *,
         ppa: str | None = None,
@@ -100,10 +100,10 @@ class TestRockPatcherPatch:
             series=series,
             suffix=suffix,
             workarounds=workarounds,
-        ).patch(_rock())
+        ).patch(rockcraft_file())
 
     def test_release_updates_cloud_repo_value(self):
-        result = self._patch(
+        result = self.patch(
             ppa=None,
             release=Release.ANTELOPE,
             series=Series.NOBLE,
@@ -115,7 +115,7 @@ class TestRockPatcherPatch:
         from heliostat.workarounds.wsgi import WSGIShim
 
         shim = WSGIShim(module="nova.wsgi", script_name="nova-api")
-        result = self._patch(
+        result = self.patch(
             ppa=None,
             release=Release.EPOXY,
             series=Series.NOBLE,

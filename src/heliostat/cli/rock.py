@@ -18,7 +18,7 @@ from heliostat.workarounds import Workaround, get_workarounds
 rock_app = typer.Typer()
 
 
-def _get_rock(
+def get_rock(
     rock_name: str,
     repo: SunbeamRockRepo | None = None,
     release: Release = Release.default(),
@@ -57,7 +57,7 @@ def show(
     rock_name: str,
     release: Annotated[Release, typer.Option()] = Release.default(),
 ):
-    rock = _get_rock(rock_name, release=release)
+    rock = get_rock(rock_name, release=release)
     typer.echo(f"Rock: {rock.name}")
     typer.echo("Repositories:")
     for pkg_repo in rock.rockcraft_yaml().repositories():
@@ -101,7 +101,7 @@ def patch(
         ),
     ] = True,
 ):
-    rock = _get_rock(rock_name, release=release)
+    rock = get_rock(rock_name, release=release)
 
     if enable_workarounds:
         workarounds = get_workarounds(rock, release, series)

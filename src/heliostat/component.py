@@ -67,12 +67,12 @@ class NetworkPackageResolver:
 
         if release == series.default_release():
             for source in src_packages:
-                yield from self._madison_packages(source, series)
+                yield from self.madison_packages(source, series)
             return
 
-        yield from self._uca_packages(src_packages, series, release)
+        yield from self.uca_packages(src_packages, series, release)
 
-    def _uca_packages(
+    def uca_packages(
         self, src_packages: set[str], series: Series, release: Release
     ) -> Iterable[str]:
         response = self.session.get(
@@ -88,7 +88,7 @@ class NetworkPackageResolver:
                     pkg["package"] for pkg in source_pkg["Package-List"]
                 )
 
-    def _madison_packages(
+    def madison_packages(
         self, source: str, series: Series = Series.default()
     ) -> Iterable[str]:
         response = self.session.get(

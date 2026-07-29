@@ -123,7 +123,7 @@ class TestNetworkPackageResolver:
 
     def test_queries_each_source_for_default_release(self):
         resolver = NetworkPackageResolver()
-        resolver._madison_packages = MagicMock(return_value=())
+        resolver.madison_packages = MagicMock(return_value=())
 
         result = list(
             resolver.binaries_for_source(
@@ -134,6 +134,6 @@ class TestNetworkPackageResolver:
         )
 
         assert result == []
-        resolver._madison_packages.assert_called_once_with(
+        resolver.madison_packages.assert_called_once_with(
             "cinder", Series.NOBLE
         )

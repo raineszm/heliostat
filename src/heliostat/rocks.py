@@ -230,7 +230,7 @@ class SunbeamRockRepo:
     def __init__(self, path: Path):
         self.path = path
 
-    def _matching_rocks(
+    def matching_rocks(
         self, names: set[str] | None = None
     ) -> Iterable[SunbeamRock]:
         """Yield all rocks, optionally filtered by name."""
@@ -238,7 +238,7 @@ class SunbeamRockRepo:
             if names is None or rock_dir.name in names:
                 yield SunbeamRock(rock_dir)
 
-    def _consolidate(
+    def consolidate(
         self, rocks: Iterable[SunbeamRock]
     ) -> Iterable[SunbeamRock]:
         """Prefer ``-consolidated`` variants when multiple rocks share"""
@@ -258,9 +258,9 @@ class SunbeamRockRepo:
     def rocks(
         self, names: set[str] | None = None, consolidated: bool = False
     ) -> Iterable[SunbeamRock]:
-        all_rocks = self._matching_rocks(names)
+        all_rocks = self.matching_rocks(names)
         if consolidated:
-            return self._consolidate(all_rocks)
+            return self.consolidate(all_rocks)
         return all_rocks
 
     def rock(self, name: str) -> SunbeamRock:

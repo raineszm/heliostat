@@ -10,11 +10,11 @@ class MinimalCharm(ops.CharmBase):
     def __init__(self, framework: ops.Framework):
         super().__init__(framework)
         framework.observe(
-            self.on["test-container"].pebble_ready, self._on_pebble_ready
+            self.on["test-container"].pebble_ready, self.on_pebble_ready
         )
         self.container = self.unit.get_container("test-container")
 
-    def _on_pebble_ready(self, _: ops.PebbleReadyEvent):
+    def on_pebble_ready(self, _: ops.PebbleReadyEvent):
         """Handle pebble-ready event."""
         self.unit.status = ops.ActiveStatus()
 

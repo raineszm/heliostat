@@ -7,7 +7,7 @@ from heliostat.rocks import (
     SetVersionString,
 )
 
-_BASE_YAML = {"name": "test", "parts": {}}
+BASE_YAML = {"name": "test", "parts": {}}
 
 _PATCHABLE_YAML = {
     "name": "test",
@@ -25,7 +25,7 @@ def patchable():
 class TestRepositories:
     def test_parses_cloud_repo(self):
         yaml = {
-            **_BASE_YAML,
+            **BASE_YAML,
             "package-repositories": [
                 {"type": "apt", "cloud": "epoxy", "priority": "always"}
             ],
@@ -37,7 +37,7 @@ class TestRepositories:
 
     def test_parses_ppa_repo(self):
         yaml = {
-            **_BASE_YAML,
+            **BASE_YAML,
             "package-repositories": [{"type": "apt", "ppa": "foo/bar"}],
         }
         repos = list(RockcraftFile(yaml).repositories())
@@ -46,11 +46,11 @@ class TestRepositories:
         assert repos[0].ppa == "foo/bar"
 
     def test_empty_when_no_repos_key(self):
-        assert list(RockcraftFile(_BASE_YAML).repositories()) == []
+        assert list(RockcraftFile(BASE_YAML).repositories()) == []
 
     def test_multiple_repos(self):
         yaml = {
-            **_BASE_YAML,
+            **BASE_YAML,
             "package-repositories": [
                 {"type": "apt", "cloud": "epoxy", "priority": "always"},
                 {"type": "apt", "ppa": "foo/bar"},

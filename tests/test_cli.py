@@ -209,6 +209,16 @@ class TestRockCommands:
         assert result.exit_code == 0
         mock_do_build.assert_called_once()
 
+    @patch("heliostat.cli.rock.do_build")
+    @patch("heliostat.cli.rock.SunbeamRockRepo")
+    def test_rock_build_missing_rock(self, mock_repo_cls, mock_do_build):
+        """rock build returns an error when --rock does not exist."""
+        mock_repo_cls.ensure.return_value = make_mock_repo()
+        result = runner.invoke(main, ["rock", "build", "--rock", "missing"])
+        assert result.exit_code == 1
+        assert "No rock found for: missing" in result.output
+        mock_do_build.assert_not_called()
+
 
 # =============================================================================
 # Package Command Tests

@@ -184,8 +184,14 @@ def build(
 
     repo = SunbeamRockRepo.ensure(release=release)
 
+    selected_rocks = list(repo.rocks(set(rocks)))
+    missing_rocks = sorted(set(rocks) - {rock.name for rock in selected_rocks})
+    if missing_rocks:
+        typer.echo(f"No rock found for: {', '.join(missing_rocks)}")
+        raise typer.Exit(code=1)
+
     for rock in itertools.chain(
-        repo.rocks(set(rocks)),
+        selected_rocks,
         repo.rocks_for_packages(*sources, series=series, release=release),
     ):
         if enable_workarounds:

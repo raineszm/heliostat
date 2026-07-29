@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from heliostat.component import StaticPackageResolver
-from heliostat.rocks import SunbeamRockRepo
 from heliostat.types import Release, Series
+from heliostat.rocks import SunbeamRockRepo
+from tests.fakes import FakePackageResolver
 
 
 def write_rock(tmp_path: Path, name: str, deps: list[str]) -> None:
@@ -22,10 +22,10 @@ parts:
     )
 
 
-def test_rocks_for_packages_filters_with_static_resolver(tmp_path):
+def test_rocks_for_packages_filters_with_fake_resolver(tmp_path):
     write_rock(tmp_path, "cinder-consolidated", ["cinder-api", "sudo"])
     write_rock(tmp_path, "nova-api", ["nova-api", "sudo"])
-    resolver = StaticPackageResolver({"cinder": ["cinder-api"]})
+    resolver = FakePackageResolver({"cinder": ["cinder-api"]})
 
     repo = SunbeamRockRepo(tmp_path)
     result = [
@@ -44,7 +44,7 @@ def test_rocks_for_packages_filters_with_static_resolver(tmp_path):
 def test_rocks_for_packages_consolidates_family_when_requested(tmp_path):
     write_rock(tmp_path, "cinder-api", ["cinder-api"])
     write_rock(tmp_path, "cinder-consolidated", ["cinder-api"])
-    resolver = StaticPackageResolver({"cinder": ["cinder-api"]})
+    resolver = FakePackageResolver({"cinder": ["cinder-api"]})
 
     repo = SunbeamRockRepo(tmp_path)
     unconsolidated = [

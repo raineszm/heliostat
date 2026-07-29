@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 
 from heliostat.cli import main
 from heliostat.rocks import RockcraftFile, SunbeamRock
+from tests.fakes import FakePackageResolver
 
 runner = CliRunner()
 
@@ -221,11 +222,14 @@ class TestPackageCommands:
         assert result.exit_code == 2
         assert "Usage" in result.output
 
-    @patch("heliostat.cli.package.binaries_for_source")
-    def test_package_show(self, mock_binaries_for_source):
+    def test_package_show(self):
         """package show displays binary packages."""
-        mock_binaries_for_source.return_value = CINDER_BINARY_PACKAGES
-        result = runner.invoke(main, ["package", "show", "cinder"])
+        resolver = FakePackageResolver({"cinder": CINDER_BINARY_PACKAGES})
+        with patch(
+            "heliostat.cli.package.NetworkPackageResolver",
+            return_value=resolver,
+        ):
+            result = runner.invoke(main, ["package", "show", "cinder"])
         assert result.exit_code == 0
         assert "cinder-api" in result.output
 

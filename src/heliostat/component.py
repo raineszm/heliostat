@@ -1,6 +1,5 @@
 import gzip
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Iterable, Sequence
 from typing import Protocol
 
 import requests
@@ -55,9 +54,7 @@ class NetworkPackageResolver:
         session: requests.Session | None = None,
         timeout: float = REQUEST_TIMEOUT,
     ):
-        self.session = (
-            build_retrying_session() if session is None else session
-        )
+        self.session = build_retrying_session() if session is None else session
         self.timeout = timeout
 
     def binaries_for_source(
@@ -102,37 +99,4 @@ class NetworkPackageResolver:
                 yield line.split("|")[0].strip()
 
 
-@dataclass
-class StaticPackageResolver:
-    packages_by_source: Mapping[str, Sequence[str]]
-
-    def binaries_for_source(
-        self,
-        src_packages: Sequence[str],
-        *,
-        series: Series,
-        release: Release,
-    ) -> Iterable[str]:
-        del series, release
-        for src_package in src_packages:
-            yield from self.packages_by_source.get(src_package, ())
-
-
 DEFAULT_PACKAGE_RESOLVER = NetworkPackageResolver()
-
-
-def binaries_for_source(
-    src_packages: Sequence[str],
-    *,
-    series: Series,
-    release: Release,
-    resolver: PackageResolver | None = None,
-) -> Iterable[str]:
-    active_resolver = (
-        resolver if resolver is not None else DEFAULT_PACKAGE_RESOLVER
-    )
-    yield from active_resolver.binaries_for_source(
-        src_packages,
-        series=series,
-        release=release,
-    )

@@ -10,7 +10,7 @@ from typing import Any, Literal, Protocol, Self
 import msgspec
 from ruamel.yaml import YAML
 
-from heliostat.component import PackageResolver, binaries_for_source
+from heliostat.component import PackageResolver
 from heliostat.fetch import ensure_repo
 from heliostat.types import Base, Release, Series
 
@@ -274,15 +274,14 @@ class SunbeamRockRepo:
         *sources: str,
         series: Series,
         release: Release,
+        resolver: PackageResolver,
         consolidated: bool = False,
-        resolver: PackageResolver | None = None,
     ) -> Iterable[SunbeamRock]:
         binpkgs = set(
-            binaries_for_source(
+            resolver.binaries_for_source(
                 list(sources),
                 series=series,
                 release=release,
-                resolver=resolver,
             )
         )
         return (

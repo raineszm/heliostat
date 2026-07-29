@@ -1,14 +1,10 @@
 import functools
 import gzip
 
-import pytest
 import responses
-import heliostat.component as component_module
 
 from heliostat.component import (
     NetworkPackageResolver,
-    StaticPackageResolver,
-    binaries_for_source,
     rmadison_url,
     uca_sources_url,
 )
@@ -123,57 +119,3 @@ class TestNetworkPackageResolver:
             )
         )
         assert result == []
-
-
-class TestBinariesForSource:
-    @pytest.mark.parametrize("release", [Release.CARACAL, Release.ANTELOPE])
-    @stub_cinder_responses
-    def test_returns_binary_packages(self, release):
-        result = list(
-            binaries_for_source(
-                ["cinder"],
-                series=Series.NOBLE,
-                release=release,
-            )
-        )
-        assert set(result) == _CINDER_BINARY_PACKAGES
-
-    def test_allows_static_test_adapter(self):
-        resolver = StaticPackageResolver(
-            {"cinder": ["cinder-api", "cinder-volume"]}
-        )
-        result = list(
-            binaries_for_source(
-                ["cinder"],
-                series=Series.NOBLE,
-                release=Release.ANTELOPE,
-                resolver=resolver,
-            )
-        )
-        assert result == ["cinder-api", "cinder-volume"]
-
-    def test_uses_explicit_falsey_resolver(self, monkeypatch):
-        class FalseyResolver:
-            def __bool__(self):
-                return False
-
-            def binaries_for_source(self, src_packages, *, series, release):
-                del src_packages, series, release
-                return ["from-falsey"]
-
-        monkeypatch.setattr(
-            component_module,
-            "DEFAULT_PACKAGE_RESOLVER",
-            StaticPackageResolver({"cinder": ["from-default"]}),
-        )
-
-        result = list(
-            binaries_for_source(
-                ["cinder"],
-                series=Series.NOBLE,
-                release=Release.ANTELOPE,
-                resolver=FalseyResolver(),
-            )
-        )
-
-        assert result == ["from-falsey"]
